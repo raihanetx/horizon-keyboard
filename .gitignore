@@ -1,0 +1,16 @@
+
+# Build outputs
+app/build/
+build/
+.gradle/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+Horizon-v1.0-debug.apk
