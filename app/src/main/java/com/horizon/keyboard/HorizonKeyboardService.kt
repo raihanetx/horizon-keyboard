@@ -22,6 +22,8 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
     override val savedStateRegistry: SavedStateRegistry
         get() = savedStateRegistryController.savedStateRegistry
 
+    private var composeView: ComposeView? = null
+
     override fun onCreate() {
         super.onCreate()
         savedStateRegistryController.performRestore(null)
@@ -29,31 +31,55 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
     }
 
     override fun onCreateInputView(): View {
+        // Dispose old view if exists
+        composeView?.disposeComposition()
+
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
 
-        window?.window?.decorView?.let { decorView ->
-            decorView.setViewTreeLifecycleOwner(this)
-            decorView.setViewTreeSavedStateRegistryOwner(this)
-        }
+        val view = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@HorizonKeyboardService)
+            setViewTreeSavedStateRegistryOwner(this@HorizonKeyboardService)
 
-        return ComposeView(this).apply {
             setContent {
                 HorizonKeyboardUI(
-                    // onKeyPress receives the EXACT character to commit (shift already applied)
                     onKeyPress = { char -> commitText(char) },
                     onBackspace = { handleBackspace() },
                     onEnter = { handleEnter() },
-                    onShift = { /* shift state is managed entirely in the UI */ },
+                    onShift = { },
                     onSpace = { commitText(" ") },
-                    onSymbol = { /* symbol state is managed entirely in the UI */ },
+                    onSymbol = { },
                     onVoiceText = { text -> commitText("$text ") }
                 )
             }
         }
+
+        composeView = view
+        return view
+    }
+
+    override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
+        super.onStartInput(attribute, restarting)
+        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+    }
+
+    override fun onWindowShown() {
+        super.onWindowShown()
+        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+    }
+
+    override fun onWindowHidden() {
+        super.onWindowHidden()
+        lifecycleRegistry.currentState = Lifecycle.State.STARTED
+    }
+
+    override fun onFinishInput() {
+        super.onFinishInput()
     }
 
     override fun onDestroy() {
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+        composeView?.disposeComposition()
+        composeView = null
         super.onDestroy()
     }
 
