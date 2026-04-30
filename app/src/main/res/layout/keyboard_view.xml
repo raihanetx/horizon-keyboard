@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#1C1C1E"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <!-- Suggestion bar -->
+    <LinearLayout
+        android:id="@+id/suggestion_bar"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:orientation="horizontal"
+        android:background="#1C1C1E"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/sug1"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Hello"
+            android:textColor="#A0A0A8"
+            android:textSize="13sp"
+            android:background="?android:attr/selectableItemBackground" />
+
+        <TextView
+            android:id="@+id/sug2"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="The"
+            android:textColor="#A0A0A8"
+            android:textSize="13sp"
+            android:background="?android:attr/selectableItemBackground" />
+
+        <TextView
+            android:id="@+id/sug3"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Thanks"
+            android:textColor="#A0A0A8"
+            android:textSize="13sp"
+            android:background="?android:attr/selectableItemBackground" />
+    </LinearLayout>
+
+    <!-- Toolbar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:orientation="horizontal"
+        android:background="#2C2C2E"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="6dp">
+
+        <ImageView
+            android:id="@+id/btn_keyboard"
+            android:layout_width="0dp"
+            android:layout_height="24dp"
+            android:layout_weight="1"
+            android:src="@android:drawable/ic_dialog_dialer"
+            android:scaleType="centerInside"
+            android:alpha="0.9"
+            android:contentDescription="Keyboard" />
+
+        <ImageView
+            android:id="@+id/btn_voice"
+            android:layout_width="0dp"
+            android:layout_height="24dp"
+            android:layout_weight="1"
+            android:src="@android:drawable/ic_btn_speak_now"
+            android:scaleType="centerInside"
+            android:alpha="0.5"
+            android:contentDescription="Voice" />
+    </LinearLayout>
+
+    <!-- Keyboard rows -->
+    <LinearLayout
+        android:id="@+id/keyboard_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="4dp"
+        android:paddingTop="6dp">
+
+        <!-- Row 1: q w e r t y u i o p -->
+        <LinearLayout
+            android:id="@+id/row1"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:orientation="horizontal"
+            android:layout_marginBottom="5dp" />
+
+        <!-- Row 2: a s d f g h j k l -->
+        <LinearLayout
+            android:id="@+id/row2"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:orientation="horizontal"
+            android:layout_marginBottom="5dp" />
+
+        <!-- Row 3: shift z x c v b n m backspace -->
+        <LinearLayout
+            android:id="@+id/row3"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:orientation="horizontal"
+            android:layout_marginBottom="5dp" />
+
+        <!-- Row 4: 123 @ space . done -->
+        <LinearLayout
+            android:id="@+id/row4"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:orientation="horizontal" />
+    </LinearLayout>
+</LinearLayout>
