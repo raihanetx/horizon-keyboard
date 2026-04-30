@@ -1,12 +1,16 @@
 package com.horizon.keyboard
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,10 +24,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
+
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                Toast.makeText(this, "Microphone permission granted ✓", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Microphone permission denied — voice typing won't work", Toast.LENGTH_LONG).show()
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Request microphone permission on launch if not granted
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+
         setContent {
             HorizonSetupScreen()
         }
@@ -61,10 +84,11 @@ fun HorizonSetupScreen() {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "A minimal keyboard built with love.",
+            text = "Minimal keyboard with voice typing.\nSupports English & Bangla.",
             color = Color(0xFF8E8E93),
             fontSize = 14.sp,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            lineHeight = 20.sp
         )
 
         Spacer(modifier = Modifier.height(48.dp))
@@ -102,7 +126,10 @@ fun HorizonSetupScreen() {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "1. Tap Step 1 → find \"Horizon Keyboard\" → toggle ON\n2. Tap Step 2 → select \"Horizon Keyboard\"\n3. Open any app with a text field to test",
+            text = "1. Tap Step 1 → find \"Horizon Keyboard\" → toggle ON\n" +
+                    "2. Tap Step 2 → select \"Horizon Keyboard\"\n" +
+                    "3. Tap 🎤 on the keyboard for voice typing\n" +
+                    "4. Toggle English/Bangla in the voice bar",
             color = Color(0xFF636366),
             fontSize = 12.sp,
             textAlign = TextAlign.Start,

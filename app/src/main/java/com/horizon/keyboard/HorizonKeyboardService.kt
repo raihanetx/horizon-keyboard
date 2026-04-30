@@ -47,7 +47,8 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
                     onEnter = { handleEnter() },
                     onShift = { handleShift() },
                     onSpace = { handleSpace() },
-                    onSymbol = { handleSymbolToggle() }
+                    onSymbol = { handleSymbolToggle() },
+                    onVoiceText = { text -> handleVoiceText(text) }
                 )
             }
         }
@@ -97,5 +98,14 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
 
     private fun handleSymbolToggle() {
         isSymbolMode = !isSymbolMode
+    }
+
+    /**
+     * Commits voice-recognized text to the current input field.
+     * Adds a trailing space for natural flow.
+     */
+    private fun handleVoiceText(text: String) {
+        val ic = currentInputConnection ?: return
+        ic.commitText("$text ", 1)
     }
 }

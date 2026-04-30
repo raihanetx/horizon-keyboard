@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,10 +48,12 @@ fun HorizonKeyboardUI(
     onEnter: () -> Unit,
     onShift: () -> Unit,
     onSpace: () -> Unit,
-    onSymbol: () -> Unit
+    onSymbol: () -> Unit,
+    onVoiceText: (String) -> Unit
 ) {
     var isShifted by remember { mutableStateOf(false) }
     var isSymbolMode by remember { mutableStateOf(false) }
+    var isVoiceMode by remember { mutableStateOf(false) }
 
     val rows = if (isSymbolMode) symbolRows else qwertyRows
     val keyColor = Color(0xFF2C2C2E)
@@ -62,99 +65,123 @@ fun HorizonKeyboardUI(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(bgColor)
-            .padding(horizontal = 4.dp, vertical = 6.dp),
+            .background(bgColor),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Letter rows
-        rows.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                row.forEach { key ->
-                    val displayKey = if (!isSymbolMode && isShifted) key.uppercase() else key.lowercase()
-                    KeyButton(
-                        label = displayKey,
-                        backgroundColor = keyColor,
-                        textColor = textColor,
-                        pressedColor = pressedColor,
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            onKeyPress(key)
-                            if (isShifted) isShifted = false
-                        }
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(4.dp))
+        // Voice typing bar (shown when voice mode is active)
+        if (isVoiceMode) {
+            VoiceTypingBar(
+                onTextRecognized = { text -> onVoiceText(text) },
+                onClose = { isVoiceMode = false }
+            )
         }
 
-        // Bottom row: Shift | Symbol | Space | Backspace
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Shift / ABC toggle
-            KeyButton(
-                label = if (isSymbolMode) "ABC" else if (isShifted) "⬆" else "⇧",
-                backgroundColor = if (isShifted) Color(0xFF0A84FF) else specialKeyColor,
-                textColor = textColor,
-                pressedColor = pressedColor,
-                modifier = Modifier.weight(1.5f),
-                onClick = {
-                    if (isSymbolMode) {
-                        isSymbolMode = false
-                    } else {
-                        isShifted = !isShifted
-                        onShift()
+            // Letter rows
+            rows.forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    row.forEach { key ->
+                        val displayKey = if (!isSymbolMode && isShifted) key.uppercase() else key.lowercase()
+                        KeyButton(
+                            label = displayKey,
+                            backgroundColor = keyColor,
+                            textColor = textColor,
+                            pressedColor = pressedColor,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                onKeyPress(key)
+                                if (isShifted) isShifted = false
+                            }
+                        )
                     }
                 }
-            )
+                Spacer(modifier = Modifier.height(4.dp))
+            }
 
-            // Symbol / Number toggle
-            KeyButton(
-                label = if (isSymbolMode) "ABC" else "123",
-                backgroundColor = specialKeyColor,
-                textColor = textColor,
-                pressedColor = pressedColor,
-                modifier = Modifier.weight(1.2f),
-                onClick = {
-                    isSymbolMode = !isSymbolMode
-                    onSymbol()
-                }
-            )
+            // Bottom row: Shift | Symbol | Space | Voice | Backspace | Enter
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Shift / ABC toggle
+                KeyButton(
+                    label = if (isSymbolMode) "ABC" else if (isShifted) "⬆" else "⇧",
+                    backgroundColor = if (isShifted) Color(0xFF0A84FF) else specialKeyColor,
+                    textColor = textColor,
+                    pressedColor = pressedColor,
+                    modifier = Modifier.weight(1.5f),
+                    onClick = {
+                        if (isSymbolMode) {
+                            isSymbolMode = false
+                        } else {
+                            isShifted = !isShifted
+                            onShift()
+                        }
+                    }
+                )
 
-            // Space bar
-            KeyButton(
-                label = "space",
-                backgroundColor = keyColor,
-                textColor = textColor,
-                pressedColor = pressedColor,
-                modifier = Modifier.weight(4f),
-                onClick = onSpace
-            )
+                // Symbol / Number toggle
+                KeyButton(
+                    label = if (isSymbolMode) "ABC" else "123",
+                    backgroundColor = specialKeyColor,
+                    textColor = textColor,
+                    pressedColor = pressedColor,
+                    modifier = Modifier.weight(1.2f),
+                    onClick = {
+                        isSymbolMode = !isSymbolMode
+                        onSymbol()
+                    }
+                )
 
-            // Backspace
-            KeyButton(
-                label = "⌫",
-                backgroundColor = specialKeyColor,
-                textColor = textColor,
-                pressedColor = pressedColor,
-                modifier = Modifier.weight(1.5f),
-                onClick = onBackspace
-            )
+                // Space bar
+                KeyButton(
+                    label = "space",
+                    backgroundColor = keyColor,
+                    textColor = textColor,
+                    pressedColor = pressedColor,
+                    modifier = Modifier.weight(3f),
+                    onClick = onSpace
+                )
 
-            // Enter / Return
-            KeyButton(
-                label = "⏎",
-                backgroundColor = Color(0xFF0A84FF),
-                textColor = Color.White,
-                pressedColor = Color(0xFF409CFF),
-                modifier = Modifier.weight(1.3f),
-                onClick = onEnter
-            )
+                // Voice toggle button 🎤
+                KeyButton(
+                    label = "🎤",
+                    backgroundColor = if (isVoiceMode) Color(0xFF0A84FF) else specialKeyColor,
+                    textColor = textColor,
+                    pressedColor = pressedColor,
+                    modifier = Modifier.weight(1f),
+                    onClick = { isVoiceMode = !isVoiceMode }
+                )
+
+                // Backspace
+                KeyButton(
+                    label = "⌫",
+                    backgroundColor = specialKeyColor,
+                    textColor = textColor,
+                    pressedColor = pressedColor,
+                    modifier = Modifier.weight(1.3f),
+                    onClick = onBackspace
+                )
+
+                // Enter / Return
+                KeyButton(
+                    label = "⏎",
+                    backgroundColor = Color(0xFF0A84FF),
+                    textColor = Color.White,
+                    pressedColor = Color(0xFF409CFF),
+                    modifier = Modifier.weight(1.2f),
+                    onClick = onEnter
+                )
+            }
         }
     }
 }
