@@ -3,15 +3,12 @@ package com.horizon.keyboard
 import android.inputmethodservice.InputMethodService
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
-import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 
 class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateRegistryOwner {
 
@@ -22,7 +19,7 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
     override val savedStateRegistry: SavedStateRegistry
         get() = savedStateRegistryController.savedStateRegistry
 
-    private var composeView: ComposeView? = null
+    private var keyboardView: KeyboardComposeView? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -31,15 +28,12 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
     }
 
     override fun onCreateInputView(): View {
-        // Dispose old view if exists
-        composeView?.disposeComposition()
+        // Dispose old view if recreating
+        keyboardView?.disposeKeyboard()
 
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
 
-        val view = ComposeView(this).apply {
-            setViewTreeLifecycleOwner(this@HorizonKeyboardService)
-            setViewTreeSavedStateRegistryOwner(this@HorizonKeyboardService)
-
+        val view = KeyboardComposeView(this).apply {
             setContent {
                 HorizonKeyboardUI(
                     onKeyPress = { char -> commitText(char) },
@@ -53,13 +47,8 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
             }
         }
 
-        composeView = view
+        keyboardView = view
         return view
-    }
-
-    override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
-        super.onStartInput(attribute, restarting)
-        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
     }
 
     override fun onWindowShown() {
@@ -72,14 +61,18 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
     }
 
+    override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
+        super.onStartInput(attribute, restarting)
+    }
+
     override fun onFinishInput() {
         super.onFinishInput()
     }
 
     override fun onDestroy() {
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
-        composeView?.disposeComposition()
-        composeView = null
+        keyboardView?.disposeKeyboard()
+        keyboardView = null
         super.onDestroy()
     }
 
