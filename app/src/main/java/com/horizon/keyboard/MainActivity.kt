@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -40,7 +41,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Request microphone permission on launch if not granted
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
@@ -62,11 +62,23 @@ fun HorizonSetupScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(bg)
+            .background(Color.Black)
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // Header
+        Text(
+            text = "MIMO PRO CONSOLE",
+            fontFamily = FontFamily.Monospace,
+            fontSize = 10.sp,
+            letterSpacing = 1.2.sp,
+            color = Color(0xFF636366),
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(
             text = "⌨️",
             fontSize = 64.sp
@@ -78,7 +90,8 @@ fun HorizonSetupScreen() {
             text = "Horizon Keyboard",
             color = Color.White,
             fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.SansSerif
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -93,7 +106,7 @@ fun HorizonSetupScreen() {
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Step 1: Enable the keyboard
+        // Step 1
         Button(
             onClick = {
                 context.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
@@ -109,7 +122,7 @@ fun HorizonSetupScreen() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Step 2: Switch to Horizon
+        // Step 2
         OutlinedButton(
             onClick = {
                 val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager

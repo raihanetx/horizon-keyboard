@@ -31,9 +31,6 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
     override fun onCreateInputView(): View {
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
 
-        // CRITICAL FIX: Set lifecycle owner on the IME window's decor view.
-        // ComposeView's WindowRecomposer walks up the view tree to find a
-        // LifecycleOwner. If it hits the window root without finding one, it crashes.
         window?.window?.decorView?.let { decorView ->
             decorView.setViewTreeLifecycleOwner(this)
             decorView.setViewTreeSavedStateRegistryOwner(this)
@@ -42,13 +39,14 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
         return ComposeView(this).apply {
             setContent {
                 HorizonKeyboardUI(
-                    onKeyPress = { char -> handleCharInput(char) },
+                    // onKeyPress receives the EXACT character to commit (shift already applied)
+                    onKeyPress = { char -> commitText(char) },
                     onBackspace = { handleBackspace() },
                     onEnter = { handleEnter() },
-                    onShift = { handleShift() },
-                    onSpace = { handleSpace() },
-                    onSymbol = { handleSymbolToggle() },
-                    onVoiceText = { text -> handleVoiceText(text) }
+                    onShift = { /* shift state is managed entirely in the UI */ },
+                    onSpace = { commitText(" ") },
+                    onSymbol = { /* symbol state is managed entirely in the UI */ },
+                    onVoiceText = { text -> commitText("$text ") }
                 )
             }
         }
@@ -59,16 +57,9 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
         super.onDestroy()
     }
 
-    private var isShifted = false
-    private var isSymbolMode = false
-
-    private fun handleCharInput(char: String) {
+    private fun commitText(text: String) {
         val ic = currentInputConnection ?: return
-        val output = if (isShifted) char.uppercase() else char
-        ic.commitText(output, 1)
-        if (isShifted) {
-            isShifted = false
-        }
+        ic.commitText(text, 1)
     }
 
     private fun handleBackspace() {
@@ -85,27 +76,5 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
         } else {
             ic.commitText("\n", 1)
         }
-    }
-
-    private fun handleShift() {
-        isShifted = !isShifted
-    }
-
-    private fun handleSpace() {
-        val ic = currentInputConnection ?: return
-        ic.commitText(" ", 1)
-    }
-
-    private fun handleSymbolToggle() {
-        isSymbolMode = !isSymbolMode
-    }
-
-    /**
-     * Commits voice-recognized text to the current input field.
-     * Adds a trailing space for natural flow.
-     */
-    private fun handleVoiceText(text: String) {
-        val ic = currentInputConnection ?: return
-        ic.commitText("$text ", 1)
     }
 }

@@ -1,45 +1,58 @@
 package com.horizon.keyboard
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 
-private val qwertyRows = listOf(
-    listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"),
-    listOf("A", "S", "D", "F", "G", "H", "J", "K", "L"),
-    listOf("Z", "X", "C", "V", "B", "N", "M")
-)
+// --- Colors ---
+private val ColorBg = Color(0xFF1C1C1E)
+private val ColorKb = Color(0xFF2C2C2E)
+private val ColorText = Color(0xFFFFFFFF)
+private val ColorTextMuted = Color(0xFFA0A0A8)
+private val ColorTextDark = Color(0xFF636366)
+private val ColorAccent = Color(0xFF0A84FF)
+private val ColorKeyShadow = Color(0xFF151517)
+private val ColorKeySurfaceDark = Color(0xFF3A3A3C)
+private val ColorKeySurfaceLight = Color(0xFF2C2C2E)
+private val ColorKeySpecial = Color(0xFF48484A)
+private val ColorRed = Color(0xFFFF453A)
 
-private val symbolRows = listOf(
-    listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"),
-    listOf("@", "#", "$", "%", "&", "-", "+", "(", ")"),
-    listOf("!", "\"", "'", ":", ";", ",", ".", "?", "/")
-)
+enum class AppTab { Keyboard, Translate, Clipboard, Voice, Terminal, Settings }
+
+// ─── Main Keyboard UI (exact clone of ui reference) ─────────────
 
 @Composable
 fun HorizonKeyboardUI(
@@ -51,169 +64,410 @@ fun HorizonKeyboardUI(
     onSymbol: () -> Unit,
     onVoiceText: (String) -> Unit
 ) {
-    var isShifted by remember { mutableStateOf(false) }
-    var isSymbolMode by remember { mutableStateOf(false) }
-    var isVoiceMode by remember { mutableStateOf(false) }
-
-    val rows = if (isSymbolMode) symbolRows else qwertyRows
-    val keyColor = Color(0xFF2C2C2E)
-    val textColor = Color(0xFFE5E5E7)
-    val specialKeyColor = Color(0xFF3A3A3C)
-    val pressedColor = Color(0xFF636366)
-    val bgColor = Color(0xFF1C1C1E)
+    var text by remember { mutableStateOf("") }
+    var shift by remember { mutableStateOf(false) }
+    var currentTab by remember { mutableStateOf(AppTab.Keyboard) }
 
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .background(bgColor),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .fillMaxSize()
+            .background(Color.Black)
     ) {
-        // Voice typing bar (shown when voice mode is active)
-        if (isVoiceMode) {
-            VoiceTypingBar(
-                onTextRecognized = { text -> onVoiceText(text) },
-                onClose = { isVoiceMode = false }
-            )
+        // Output Display Area
+        OutputDisplayArea(
+            text = text,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Suggestion Bar
+        AnimatedVisibility(
+            visible = text.isNotEmpty() && currentTab == AppTab.Keyboard,
+            enter = expandVertically(expandFrom = Alignment.Top, animationSpec = tween(200)),
+            exit = shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = tween(200))
+        ) {
+            SuggestionBar(onInsert = { word -> text += "$word "; onKeyPress("$word ") })
         }
 
-        Column(
+        // Toolbar / Voice Overlay
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .height(48.dp)
+                .background(ColorKb)
+                .border(1.dp, Color(0xFF3A3A3C), RoundedCornerShape(0.dp))
         ) {
-            // Letter rows
-            rows.forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    row.forEach { key ->
-                        val displayKey = if (!isSymbolMode && isShifted) key.uppercase() else key.lowercase()
-                        KeyButton(
-                            label = displayKey,
-                            backgroundColor = keyColor,
-                            textColor = textColor,
-                            pressedColor = pressedColor,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                onKeyPress(key)
-                                if (isShifted) isShifted = false
-                            }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-            }
+            Toolbar(currentTab = currentTab, onTabSelected = { currentTab = it })
 
-            // Bottom row: Shift | Symbol | Space | Voice | Backspace | Enter
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Shift / ABC toggle
-                KeyButton(
-                    label = if (isSymbolMode) "ABC" else if (isShifted) "⬆" else "⇧",
-                    backgroundColor = if (isShifted) Color(0xFF0A84FF) else specialKeyColor,
-                    textColor = textColor,
-                    pressedColor = pressedColor,
-                    modifier = Modifier.weight(1.5f),
-                    onClick = {
-                        if (isSymbolMode) {
-                            isSymbolMode = false
-                        } else {
-                            isShifted = !isShifted
-                            onShift()
+            if (currentTab == AppTab.Voice) {
+                VoiceTypingBar(
+                    onTextRecognized = { recognized ->
+                        text += "$recognized "
+                        onVoiceText(recognized)
+                    },
+                    onClose = { currentTab = AppTab.Keyboard }
+                )
+            }
+        }
+
+        // Main Bottom Area (Fixed 220.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .background(ColorBg)
+                .padding(top = 8.dp, start = 6.dp, end = 6.dp)
+        ) {
+            when (currentTab) {
+                AppTab.Keyboard, AppTab.Voice -> KeyboardLayout(
+                    isShift = shift,
+                    onShiftToggle = { shift = !shift },
+                    onKeyPress = { key ->
+                        when (key) {
+                            "⌫" -> {
+                                if (text.isNotEmpty()) text = text.dropLast(1)
+                                onBackspace()
+                            }
+                            "SPACE" -> {
+                                text += " "
+                                onSpace()
+                            }
+                            "DONE" -> {
+                                onEnter()
+                                currentTab = AppTab.Keyboard
+                            }
+                            else -> {
+                                val output = if (shift) key.uppercase() else key.lowercase()
+                                text += output
+                                onKeyPress(output)  // Send exact char with shift applied
+                                if (shift) shift = false
+                            }
                         }
                     }
                 )
+                AppTab.Translate -> TranslatePanel(text)
+                AppTab.Clipboard -> ClipboardPanel()
+                AppTab.Terminal -> TerminalPanel()
+                AppTab.Settings -> SettingsPanel()
+            }
+        }
+    }
+}
 
-                // Symbol / Number toggle
-                KeyButton(
-                    label = if (isSymbolMode) "ABC" else "123",
-                    backgroundColor = specialKeyColor,
-                    textColor = textColor,
-                    pressedColor = pressedColor,
-                    modifier = Modifier.weight(1.2f),
-                    onClick = {
-                        isSymbolMode = !isSymbolMode
-                        onSymbol()
-                    }
-                )
+// ─── Output Display Area ─────────────────────────────────────────
 
-                // Space bar
-                KeyButton(
-                    label = "space",
-                    backgroundColor = keyColor,
-                    textColor = textColor,
-                    pressedColor = pressedColor,
-                    modifier = Modifier.weight(3f),
-                    onClick = onSpace
-                )
+@Composable
+fun OutputDisplayArea(text: String, modifier: Modifier = Modifier) {
+    var cursorVisible by remember { mutableStateOf(true) }
 
-                // Voice toggle button 🎤
-                KeyButton(
-                    label = "🎤",
-                    backgroundColor = if (isVoiceMode) Color(0xFF0A84FF) else specialKeyColor,
-                    textColor = textColor,
-                    pressedColor = pressedColor,
-                    modifier = Modifier.weight(1f),
-                    onClick = { isVoiceMode = !isVoiceMode }
-                )
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(500)
+            cursorVisible = !cursorVisible
+        }
+    }
 
-                // Backspace
-                KeyButton(
-                    label = "⌫",
-                    backgroundColor = specialKeyColor,
-                    textColor = textColor,
-                    pressedColor = pressedColor,
-                    modifier = Modifier.weight(1.3f),
-                    onClick = onBackspace
+    LazyColumn(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.Bottom
+    ) {
+        item {
+            Text(
+                text = "MIMO PRO CONSOLE",
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp,
+                letterSpacing = 1.2.sp,
+                color = ColorTextDark,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = text,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 18.sp,
+                    lineHeight = 25.sp,
+                    color = ColorText
                 )
+                Box(
+                    modifier = Modifier
+                        .padding(start = 2.dp)
+                        .width(2.dp)
+                        .height(20.dp)
+                        .background(if (cursorVisible) ColorAccent else Color.Transparent)
+                )
+            }
+            Spacer(modifier = Modifier.height(140.dp))
+        }
+    }
+}
 
-                // Enter / Return
-                KeyButton(
-                    label = "⏎",
-                    backgroundColor = Color(0xFF0A84FF),
-                    textColor = Color.White,
-                    pressedColor = Color(0xFF409CFF),
-                    modifier = Modifier.weight(1.2f),
-                    onClick = onEnter
-                )
+// ─── Suggestion Bar ──────────────────────────────────────────────
+
+@Composable
+fun SuggestionBar(onInsert: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .background(ColorBg)
+            .border(1.dp, ColorKb),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val words = listOf("Hello", "The", "Thanks")
+        words.forEachIndexed { index, word ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { onInsert(word) }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = word, color = ColorTextMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                if (index < words.size - 1) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .width(1.dp)
+                            .fillMaxHeight(0.6f)
+                            .background(Color(0xFF3A3A3C))
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─── Toolbar ─────────────────────────────────────────────────────
+
+@Composable
+fun Toolbar(currentTab: AppTab, onTabSelected: (AppTab) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val icons = listOf(
+            AppTab.Keyboard to "M20 5H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z",
+            AppTab.Translate to "M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0014.07 6H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z",
+            AppTab.Clipboard to "M19 2h-4.18C14.4.84 13.3 0 12 0S9.6.84 9.18 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z",
+            AppTab.Voice to "M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15a.998.998 0 00-.98-.85c-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z",
+            AppTab.Terminal to "M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zm-2-1h-6v-2h6v2zM7.5 17l-1.41-1.41L8.67 13l-2.59-2.59L7.5 9l4 4-4 4z",
+            AppTab.Settings to "M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24-1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+        )
+
+        icons.forEach { (tab, pathData) ->
+            val isActive = currentTab == tab
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(38.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { onTabSelected(tab) }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                SvgIcon(pathData = pathData, color = if (isActive) ColorAccent else ColorTextMuted)
             }
         }
     }
 }
 
 @Composable
-fun KeyButton(
-    label: String,
-    backgroundColor: Color,
-    textColor: Color,
-    pressedColor: Color,
-    modifier: Modifier = Modifier,
+fun SvgIcon(pathData: String, color: Color) {
+    val path = remember {
+        PathParser().parsePathString(pathData).toPath()
+    }
+    Canvas(modifier = Modifier.size(20.dp)) {
+        val s = size.width / 24f
+        withTransform({
+            scale(s, s, pivot = Offset.Zero)
+        }) {
+            drawPath(path = path, color = color)
+        }
+    }
+}
+
+// ─── Keyboard Layout ─────────────────────────────────────────────
+
+@Composable
+fun KeyboardLayout(isShift: Boolean, onShiftToggle: () -> Unit, onKeyPress: (String) -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        KeyRow {
+            listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p").forEach {
+                KeyboardKey(text = if (isShift) it.uppercase() else it, onClick = { onKeyPress(it) })
+            }
+        }
+        KeyRow {
+            listOf("a", "s", "d", "f", "g", "h", "j", "k", "l").forEach {
+                KeyboardKey(text = if (isShift) it.uppercase() else it, onClick = { onKeyPress(it) })
+            }
+        }
+        KeyRow {
+            KeyboardKey(text = "⇧", weight = 1.4f, bg = if (isShift) ColorAccent else ColorKeySpecial, onClick = onShiftToggle)
+            listOf("z", "x", "c", "v", "b", "n", "m").forEach {
+                KeyboardKey(text = if (isShift) it.uppercase() else it, onClick = { onKeyPress(it) })
+            }
+            KeyboardKey(text = "⌫", weight = 1.4f, bg = ColorKeySpecial, onClick = { onKeyPress("⌫") })
+        }
+        KeyRow {
+            KeyboardKey(text = "123", weight = 1.4f, bg = ColorKeySpecial, fontSize = 11.sp, onClick = {})
+            KeyboardKey(text = "@", weight = 1f, onClick = { onKeyPress("@") })
+            KeyboardKey(text = "SPACE", weight = 5f, fontSize = 11.sp, letterSpacing = 2.sp, onClick = { onKeyPress("SPACE") })
+            KeyboardKey(text = ".", weight = 1f, onClick = { onKeyPress(".") })
+            KeyboardKey(text = "DONE", weight = 2f, bg = ColorAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold, onClick = { onKeyPress("DONE") })
+        }
+    }
+}
+
+@Composable
+fun KeyRow(content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        content = content
+    )
+}
+
+@Composable
+fun RowScope.KeyboardKey(
+    text: String,
+    weight: Float = 1f,
+    bg: Color? = null,
+    fontSize: TextUnit = 18.sp,
+    fontWeight: FontWeight = FontWeight.Medium,
+    letterSpacing: TextUnit = TextUnit.Unspecified,
     onClick: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val bg = if (isPressed) pressedColor else backgroundColor
+    val view = LocalView.current
+    var isPressed by remember { mutableStateOf(false) }
 
     Box(
-        modifier = modifier
-            .padding(2.dp)
-            .height(42.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
-            .clickable(interactionSource = interactionSource, indication = null) { onClick() },
-        contentAlignment = Alignment.Center
+        modifier = Modifier
+            .weight(weight)
+            .height(46.dp)
+            .background(ColorKeyShadow, RoundedCornerShape(8.dp))
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        isPressed = true
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        val released = tryAwaitRelease()
+                        isPressed = false
+                        if (released) onClick()
+                    }
+                )
+            }
+    ) {
+        val backgroundModifier = if (bg != null) {
+            Modifier.background(if (isPressed) ColorKeySpecial else bg, RoundedCornerShape(8.dp))
+        } else {
+            Modifier.background(
+                brush = if (isPressed) SolidColor(ColorKeySpecial) else Brush.verticalGradient(listOf(ColorKeySurfaceDark, ColorKeySurfaceLight)),
+                shape = RoundedCornerShape(8.dp)
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = if (isPressed) 0.dp else 2.dp)
+                .offset(y = if (isPressed) 2.dp else 0.dp)
+                .then(backgroundModifier),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                color = ColorText,
+                fontSize = fontSize,
+                fontWeight = fontWeight,
+                letterSpacing = letterSpacing,
+                fontFamily = if (text.length > 1) FontFamily.SansSerif else FontFamily.Default,
+                maxLines = 1,
+                overflow = TextOverflow.Visible
+            )
+        }
+    }
+}
+
+// ─── Panels ──────────────────────────────────────────────────────
+
+@Composable
+fun PanelBox(label: String, text: String, borderColor: Color = Color(0xFF3A3A3C), labelColor: Color = ColorTextDark) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+            .background(ColorKb, RoundedCornerShape(10.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+            .padding(12.dp)
     ) {
         Text(
-            text = label,
-            color = textColor,
-            fontSize = if (label.length > 2) 11.sp else 16.sp,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center
+            text = label.uppercase(),
+            fontSize = 9.sp,
+            color = labelColor,
+            fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier.padding(bottom = 4.dp)
         )
+        Text(
+            text = text.ifEmpty { "..." },
+            fontSize = 14.sp,
+            color = Color.White,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+@Composable
+fun TranslatePanel(sourceText: String) {
+    Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+        PanelBox(label = "Translation Source", text = sourceText)
+        PanelBox(label = "Result", text = "Ready.", borderColor = ColorAccent, labelColor = ColorAccent)
+    }
+}
+
+@Composable
+fun ClipboardPanel() {
+    Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+        PanelBox(label = "Clips", text = "Hello, World!")
+    }
+}
+
+@Composable
+fun TerminalPanel() {
+    Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+        Text("MiMo Dev Terminal Ready...", color = ColorTextDark, fontSize = 12.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(bottom = 8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("$", color = Color(0xFF32D74B), fontFamily = FontFamily.Monospace, modifier = Modifier.padding(end = 8.dp))
+            BasicTextField(
+                value = "",
+                onValueChange = {},
+                textStyle = TextStyle(color = ColorText, fontFamily = FontFamily.Monospace, fontSize = 14.sp),
+                decorationBox = { innerTextField ->
+                    Box {
+                        Text("Command...", color = ColorTextDark, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+                        innerTextField()
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsPanel() {
+    Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+        PanelBox(label = "System", text = "Haptics: Active")
     }
 }
