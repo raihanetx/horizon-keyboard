@@ -6,7 +6,11 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -93,23 +97,35 @@ fun HorizonKeyboardUI(
             SuggestionBar(onInsert = { word -> text += "$word "; onKeyPress("$word ") })
         }
 
-        // Toolbar / Voice Overlay
+        // Toolbar Area — when Voice is active, voice bar takes over;
+        // otherwise show the icon toolbar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
                 .background(ColorKb)
                 .border(1.dp, Color(0xFF3A3A3C), RoundedCornerShape(0.dp))
         ) {
-            Toolbar(currentTab = currentTab, onTabSelected = { currentTab = it })
-
             if (currentTab == AppTab.Voice) {
+                // Voice typing bar takes over the entire toolbar area
+                // Icon flies away, voice UI slides in
                 VoiceTypingBar(
                     onTextRecognized = { recognized ->
                         text += "$recognized "
                         onVoiceText(recognized)
                     }
                 )
+            } else {
+                // Normal icon toolbar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Toolbar(
+                        currentTab = currentTab,
+                        onTabSelected = { currentTab = it }
+                    )
+                }
             }
         }
 
@@ -122,7 +138,7 @@ fun HorizonKeyboardUI(
                 .padding(top = 8.dp, start = 6.dp, end = 6.dp)
         ) {
             when (currentTab) {
-                AppTab.Keyboard, AppTab.Voice -> KeyboardLayout(
+                AppTab.Keyboard -> KeyboardLayout(
                     isShift = shift,
                     onShiftToggle = { shift = !shift },
                     onKeyPress = { key ->
@@ -149,6 +165,7 @@ fun HorizonKeyboardUI(
                     }
                 )
                 AppTab.Translate -> TranslatePanel(text)
+                AppTab.Voice -> ClipboardPanel()  // Voice active → show panels in keyboard area
                 AppTab.Clipboard -> ClipboardPanel()
                 AppTab.Terminal -> TerminalPanel()
                 AppTab.Settings -> SettingsPanel()
