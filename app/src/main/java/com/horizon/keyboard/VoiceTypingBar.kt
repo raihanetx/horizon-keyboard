@@ -136,28 +136,18 @@ fun VoiceTypingBar(
         }
     }
 
-    // ─── HTML: <body class="h-screen flex flex-col justify-end overflow-hidden"> ───
-    // body { background: #000 }
-    // The toolbar sits at the bottom of a black screen
-    Column(
+    // ─── Single Line Toolbar — exact same height as header (48dp) ───
+    // Matches: bg-[#121212], flex items-center, px-4, gap-3, border-t border-white/10
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ColorBody),  // body { background: #000 }
-        verticalArrangement = Arrangement.Bottom  // justify-end
+            .fillMaxHeight()  // fills the 48dp toolbar container exactly
+            .background(ColorToolbar)  // bg-[#121212]
+            .border(0.5.dp, ColorWhite10)  // border-t border-white/10 (top only)
+            .padding(horizontal = 16.dp),  // px-4
+        verticalAlignment = Alignment.CenterVertically,  // items-center
+        horizontalArrangement = Arrangement.spacedBy(12.dp)  // gap-3
     ) {
-        // ─── HTML: <div id="voiceBar" class="toolbar-height w-full bg-[#121212]
-        //           flex items-center px-4 gap-3 border-t border-white/10
-        //           relative pb-[env(safe-area-inset-bottom)] transition-none"> ───
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)  // .toolbar-height { height: 52px }
-                .background(ColorToolbar)  // bg-[#121212]
-                .border(0.5.dp, ColorWhite10)  // border-t border-white/10 (top only)
-                .padding(horizontal = 16.dp),  // px-4
-            verticalAlignment = Alignment.CenterVertically,  // items-center
-            horizontalArrangement = Arrangement.spacedBy(12.dp)  // gap-3
-        ) {
             // ─── HTML: <button id="langBtn" class="flex-shrink-0 h-6 px-3
             //           rounded-full border-hairline border-white/20 bg-transparent
             //           text-[8px] font-bold uppercase tracking-tighter
@@ -200,7 +190,6 @@ fun VoiceTypingBar(
                 onClick = { toggleAction() }
             )
         }
-    }
 }
 
 // ─── Micro Button ─────────────────────────────────────────────────
