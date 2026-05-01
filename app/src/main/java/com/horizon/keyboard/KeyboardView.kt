@@ -65,6 +65,12 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     private var clipboardListContainer: LinearLayout? = null
     private val clipHistory = mutableListOf<String>()
 
+    // ─── Voice Bar (Redesigned) ────────────────────────────────────
+
+    private var voiceBars = mutableListOf<View>()
+    private var voiceAnimHandler: Handler? = null
+    private var voiceAnimRunnable: Runnable? = null
+
     init {
         orientation = VERTICAL
         setBackgroundColor(Color.parseColor("#1C1C1E"))
@@ -93,12 +99,6 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         addView(createKeyRow3())
         addView(createKeyRow4())
     }
-
-    // ─── Voice Bar (Redesigned) ────────────────────────────────────
-
-    private var voiceBars = mutableListOf<View>()
-    private var voiceAnimHandler: Handler? = null
-    private var voiceAnimRunnable: Runnable? = null
 
     private fun createVoiceBar(): LinearLayout {
         val bar = LinearLayout(context).apply {
