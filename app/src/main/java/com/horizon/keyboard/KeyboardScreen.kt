@@ -583,7 +583,7 @@ fun ClipboardPanel() {
     var clipboardText by remember { mutableStateOf("") }
     var clipHistory by remember { mutableStateOf(mutableListOf<String>()) }
 
-    // Read system clipboard on composition and periodically
+    // Read clipboard on first composition
     LaunchedEffect(Unit) {
         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
         val clip = cm.primaryClip
@@ -592,10 +592,33 @@ fun ClipboardPanel() {
             if (text.isNotEmpty()) {
                 clipboardText = text
                 if (clipHistory.isEmpty() || clipHistory.first() != text) {
-                    clipHistory.add(0, text)
-                    if (clipHistory.size > 20) clipHistory = clipHistory.take(20).toMutableList()
+                    val newHistory = mutableListOf(text)
+                    newHistory.addAll(clipHistory.filter { it != text })
+                    clipHistory = newHistory.take(20).toMutableList()
                 }
             }
+        }
+    }
+
+    // Listen for clipboard changes
+    DisposableEffect(Unit) {
+        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val listener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+            val clip = cm.primaryClip
+            if (clip != null && clip.itemCount > 0) {
+                val text = clip.getItemAt(0).text?.toString() ?: ""
+                if (text.isNotEmpty()) {
+                    clipboardText = text
+                    // Add to history (deduplicate, most recent first)
+                    val newHistory = mutableListOf(text)
+                    newHistory.addAll(clipHistory.filter { it != text })
+                    clipHistory = newHistory.take(20).toMutableList()
+                }
+            }
+        }
+        cm.addPrimaryClipChangedListener(listener)
+        onDispose {
+            cm.removePrimaryClipChangedListener(listener)
         }
     }
 

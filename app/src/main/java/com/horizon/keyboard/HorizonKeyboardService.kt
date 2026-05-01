@@ -6,13 +6,23 @@ import android.view.inputmethod.EditorInfo
 
 class HorizonKeyboardService : InputMethodService() {
 
+    private var keyboardView: KeyboardView? = null
+
     override fun onCreateInputView(): View {
         return KeyboardView(this).apply {
+            keyboardView = this
             onKeyPress = { char -> commitText(char) }
             onBackspace = { handleBackspace() }
             onEnter = { handleEnter() }
             onSpace = { commitText(" ") }
+            onPaste = { text -> commitText(text) }
         }
+    }
+
+    override fun onDestroy() {
+        keyboardView?.cleanup()
+        keyboardView = null
+        super.onDestroy()
     }
 
     private fun commitText(text: String) {

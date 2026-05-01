@@ -1,7 +1,10 @@
 package com.horizon.keyboard
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -9,15 +12,21 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputConnection
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 
 /**
  * Horizon Keyboard — Traditional View-based, reliable in InputMethodService.
@@ -28,10 +37,20 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     var onBackspace: (() -> Unit)? = null
     var onEnter: (() -> Unit)? = null
     var onSpace: (() -> Unit)? = null
+    var onPaste: ((String) -> Unit)? = null
 
     private var isShift = false
     private val shiftKeys = mutableListOf<TextView>()
     private val allLetterKeys = mutableListOf<TextView>()
+
+    // Voice typing
+    private var speechRecognizer: SpeechRecognizer? = null
+    private var isListening = false
+    private var currentVoiceLang = "en-US" // en-US or bn-BD
+    private var voiceBarContainer: LinearLayout? = null
+    private var voiceStatusText: TextView? = null
+    private var voiceLangButton: TextView? = null
+    private var voiceStartStopButton: TextView? = null
 
     init {
         orientation = VERTICAL
@@ -43,6 +62,9 @@ class KeyboardView(context: Context) : LinearLayout(context) {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun buildKeyboard() {
+        // === Voice Typing Bar (hidden by default) ===
+        addView(createVoiceBar())
+
         // === Header Bar ===
         addView(createHeaderBar())
 
@@ -54,6 +76,234 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         addView(createKeyRow2())
         addView(createKeyRow3())
         addView(createKeyRow4())
+    }
+
+    // ─── Voice Bar ───────────────────────────────────────────────
+
+    private fun createVoiceBar(): LinearLayout {
+        val bar = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dp(44)).apply {
+                bottomMargin = dp(4)
+            }
+            setBackgroundColor(Color.parseColor("#121212"))
+            val pad = dp(8)
+            setPadding(pad, 0, pad, 0)
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = GONE
+        }
+
+        // Start/Stop button
+        voiceStartStopButton = TextView(context).apply {
+            text = "Start"
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            layoutParams = LayoutParams(dp(60), dp(28)).apply {
+                marginEnd = dp(8)
+            }
+            background = pillBg("#3A3A3C")
+            setOnClickListener { toggleVoiceRecognition() }
+        }
+        bar.addView(voiceStartStopButton)
+
+        // Status text
+        voiceStatusText = TextView(context).apply {
+            text = "Tap Start to voice type..."
+            setTextColor(Color.parseColor("#8E8E93"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f)
+            gravity = Gravity.CENTER_VERTICAL
+            maxLines = 1
+        }
+        bar.addView(voiceStatusText)
+
+        // Language toggle
+        voiceLangButton = TextView(context).apply {
+            text = "EN"
+            setTextColor(Color.parseColor("#66FFFFFF"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            letterSpacing = 0.05f
+            layoutParams = LayoutParams(dp(40), dp(28))
+            background = pillBg("#2A2A2C")
+            setOnClickListener { toggleVoiceLanguage() }
+        }
+        bar.addView(voiceLangButton)
+
+        // Close button
+        val closeBtn = TextView(context).apply {
+            text = "▲"
+            setTextColor(Color.parseColor("#636366"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            gravity = Gravity.CENTER
+            layoutParams = LayoutParams(dp(30), dp(28)).apply {
+                marginStart = dp(4)
+            }
+            setOnClickListener { hideVoiceBar() }
+        }
+        bar.addView(closeBtn)
+
+        voiceBarContainer = bar
+        return bar
+    }
+
+    private fun toggleVoiceBar() {
+        voiceBarContainer?.let { bar ->
+            if (bar.visibility == GONE) {
+                bar.visibility = VISIBLE
+                initSpeechRecognizer()
+            } else {
+                hideVoiceBar()
+            }
+        }
+    }
+
+    private fun hideVoiceBar() {
+        stopVoiceRecognition()
+        voiceBarContainer?.visibility = GONE
+    }
+
+    private fun initSpeechRecognizer() {
+        if (speechRecognizer != null) return
+
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+            voiceStatusText?.text = "Speech recognition not available"
+            return
+        }
+
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            voiceStatusText?.text = "Microphone permission needed. Grant in app settings."
+            return
+        }
+
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+            setRecognitionListener(object : RecognitionListener {
+                override fun onReadyForSpeech(params: Bundle?) {
+                    isListening = true
+                    voiceStartStopButton?.text = "Stop"
+                    voiceStatusText?.text = "Listening..."
+                }
+                override fun onBeginningOfSpeech() {
+                    voiceStatusText?.text = "Listening..."
+                }
+                override fun onRmsChanged(rmsdB: Float) {}
+                override fun onBufferReceived(buffer: ByteArray?) {}
+                override fun onEndOfSpeech() {
+                    isListening = false
+                    voiceStartStopButton?.text = "Start"
+                    voiceStatusText?.text = "Processing..."
+                }
+                override fun onError(error: Int) {
+                    isListening = false
+                    voiceStartStopButton?.text = "Start"
+                    val msg = when (error) {
+                        SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected. Try again."
+                        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech detected. Try again."
+                        SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+                        SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network error"
+                        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission needed"
+                        else -> "Error occurred. Tap Start to retry."
+                    }
+                    voiceStatusText?.text = msg
+                }
+                override fun onResults(results: Bundle?) {
+                    isListening = false
+                    voiceStartStopButton?.text = "Start"
+                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    val text = matches?.firstOrNull() ?: ""
+                    if (text.isNotEmpty()) {
+                        voiceStatusText?.text = "\"$text\""
+                        onKeyPress?.invoke(text)
+                    } else {
+                        voiceStatusText?.text = "No speech detected. Try again."
+                    }
+                }
+                override fun onPartialResults(partialResults: Bundle?) {
+                    val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    val partial = matches?.firstOrNull() ?: ""
+                    if (partial.isNotEmpty()) {
+                        voiceStatusText?.text = partial
+                    }
+                }
+                override fun onEvent(eventType: Int, params: Bundle?) {}
+            })
+        }
+    }
+
+    private fun toggleVoiceRecognition() {
+        if (isListening) {
+            stopVoiceRecognition()
+        } else {
+            startVoiceRecognition()
+        }
+    }
+
+    private fun startVoiceRecognition() {
+        val recognizer = speechRecognizer ?: run {
+            initSpeechRecognizer()
+            speechRecognizer ?: return
+        }
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, currentVoiceLang)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, currentVoiceLang)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        }
+
+        try {
+            recognizer.startListening(intent)
+        } catch (e: Exception) {
+            voiceStatusText?.text = "Failed to start. Tap Start to retry."
+        }
+    }
+
+    private fun stopVoiceRecognition() {
+        speechRecognizer?.stopListening()
+        isListening = false
+        voiceStartStopButton?.text = "Start"
+    }
+
+    private fun toggleVoiceLanguage() {
+        currentVoiceLang = if (currentVoiceLang == "en-US") "bn-BD" else "en-US"
+        voiceLangButton?.text = if (currentVoiceLang == "en-US") "EN" else "BN"
+        voiceStatusText?.text = if (currentVoiceLang == "en-US") "Language: English" else "Language: বাংলা"
+
+        // Restart if currently listening
+        if (isListening) {
+            stopVoiceRecognition()
+            postDelayed({ startVoiceRecognition() }, 200)
+        }
+    }
+
+    fun cleanup() {
+        speechRecognizer?.destroy()
+        speechRecognizer = null
+        isListening = false
+    }
+
+    // ─── Clipboard Paste ─────────────────────────────────────────
+
+    private fun handleClipboardPaste() {
+        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = cm.primaryClip
+        if (clip != null && clip.itemCount > 0) {
+            val text = clip.getItemAt(0).text?.toString() ?: ""
+            if (text.isNotEmpty()) {
+                onPaste?.invoke(text)
+                Toast.makeText(context, "Pasted from clipboard", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Clipboard is empty", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Clipboard is empty", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // ─── Header Bar with proper Canvas icons ─────────────────────
@@ -135,7 +385,13 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.background = pillBg("#3A3A3C")
                     if (event.action == MotionEvent.ACTION_UP) {
-                        Toast.makeText(context, "$iconName — Coming Soon!", Toast.LENGTH_SHORT).show()
+                        when (iconType) {
+                            IconView.IconType.VOICE -> toggleVoiceBar()
+                            IconView.IconType.CLIPBOARD -> handleClipboardPaste()
+                            IconView.IconType.TRANSLATE -> Toast.makeText(context, "Translate — Type in the text field, then switch to Translate tab", Toast.LENGTH_SHORT).show()
+                            IconView.IconType.SETTINGS -> Toast.makeText(context, "Settings — Coming Soon!", Toast.LENGTH_SHORT).show()
+                            else -> {}
+                        }
                     }
                     true
                 }
