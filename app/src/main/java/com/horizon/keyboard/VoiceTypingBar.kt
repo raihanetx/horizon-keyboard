@@ -69,7 +69,8 @@ private val ColorWhite80 = Color(0xCCFFFFFF)
 
 @Composable
 fun VoiceTypingBar(
-    onTextRecognized: (String) -> Unit
+    onTextRecognized: (String) -> Unit,
+    onExit: () -> Unit
 ) {
     val context = LocalContext.current
     var isListening by remember { mutableStateOf(false) }
@@ -173,22 +174,52 @@ fun VoiceTypingBar(
                     .height(32.dp)  // h-8
             )
 
-            // ─── HTML: <button id="actionBtn" class="flex-shrink-0 h-6 min-w-[65px]
-            //           px-2 rounded-full border-hairline border-white/40 bg-transparent
-            //           text-[8px] font-black uppercase tracking-widest
-            //           text-white active:scale-95 transition-all"> ───
-            MicroButton(
-                label = if (isListening) "Stop" else "Start",
-                fontSize = 8.sp,  // text-[8px]
-                fontWeight = FontWeight.Black,  // font-black = 900
-                letterSpacing = TextUnit(0.1f, TextUnitType.Em),  // tracking-widest = 0.1em
-                textColor = ColorWhite,  // text-white
-                borderColor = if (isListening) ColorWhite80 else ColorWhite40,  // border-white/40 → white/80
-                paddingHorizontal = 8.dp,  // px-2
-                minWidth = 65.dp,  // min-w-[65px]
-                height = 24.dp,  // h-6
-                onClick = { toggleAction() }
-            )
+            // ─── Action Buttons ───
+            // When not listening: just "Start"
+            // When listening: "Stop" + "Exit" side by side
+            if (isListening) {
+                // Stop button
+                MicroButton(
+                    label = "Stop",
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = TextUnit(0.1f, TextUnitType.Em),
+                    textColor = ColorWhite,
+                    borderColor = ColorWhite80,
+                    paddingHorizontal = 8.dp,
+                    height = 24.dp,
+                    onClick = { toggleAction() }
+                )
+                // Exit button — returns to icon toolbar
+                MicroButton(
+                    label = "Exit",
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = TextUnit(0.1f, TextUnitType.Em),
+                    textColor = ColorWhite40,
+                    borderColor = ColorWhite20,
+                    paddingHorizontal = 8.dp,
+                    height = 24.dp,
+                    onClick = {
+                        stopListening()
+                        onExit()
+                    }
+                )
+            } else {
+                // Start button
+                MicroButton(
+                    label = "Start",
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = TextUnit(0.1f, TextUnitType.Em),
+                    textColor = ColorWhite,
+                    borderColor = ColorWhite40,
+                    paddingHorizontal = 8.dp,
+                    minWidth = 65.dp,
+                    height = 24.dp,
+                    onClick = { toggleAction() }
+                )
+            }
         }
 }
 

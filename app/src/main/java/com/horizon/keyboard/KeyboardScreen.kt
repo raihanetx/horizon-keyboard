@@ -112,7 +112,8 @@ fun HorizonKeyboardUI(
                     onTextRecognized = { recognized ->
                         text += "$recognized "
                         onVoiceText(recognized)
-                    }
+                    },
+                    onExit = { currentTab = AppTab.Keyboard }
                 )
             } else {
                 // Normal icon toolbar
