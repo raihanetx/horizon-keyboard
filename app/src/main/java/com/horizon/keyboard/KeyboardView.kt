@@ -5,6 +5,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -43,6 +45,12 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     private val shiftKeys = mutableListOf<TextView>()
     private val allLetterKeys = mutableListOf<TextView>()
 
+    // Long press backspace
+    private val backspaceHandler = Handler(Looper.getMainLooper())
+    private var backspaceRunnable: Runnable? = null
+    private val BACKSPACE_INITIAL_DELAY = 400L
+    private val BACKSPACE_REPEAT_DELAY = 70L
+
     // Voice typing
     private var speechRecognizer: SpeechRecognizer? = null
     private var isListening = false
@@ -51,6 +59,11 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     private var voiceStatusText: TextView? = null
     private var voiceLangButton: TextView? = null
     private var voiceStartStopButton: TextView? = null
+
+    // Clipboard history
+    private var clipboardPanel: LinearLayout? = null
+    private var clipboardListContainer: LinearLayout? = null
+    private val clipHistory = mutableListOf<String>()
 
     init {
         orientation = VERTICAL
@@ -65,6 +78,9 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         // === Voice Typing Bar (hidden by default) ===
         addView(createVoiceBar())
 
+        // === Clipboard Panel (hidden by default) ===
+        addView(createClipboardPanel())
+
         // === Header Bar ===
         addView(createHeaderBar())
 
@@ -78,82 +94,183 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         addView(createKeyRow4())
     }
 
-    // ─── Voice Bar ───────────────────────────────────────────────
+    // ─── Voice Bar (Redesigned) ────────────────────────────────────
+
+    private var voiceBars = mutableListOf<View>()
+    private var voiceAnimHandler: Handler? = null
+    private var voiceAnimRunnable: Runnable? = null
 
     private fun createVoiceBar(): LinearLayout {
         val bar = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dp(44)).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
                 bottomMargin = dp(4)
             }
-            setBackgroundColor(Color.parseColor("#121212"))
-            val pad = dp(8)
-            setPadding(pad, 0, pad, 0)
-            gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(Color.parseColor("#0D0D0D"))
+            val pad = dp(10)
+            setPadding(pad, pad, pad, dp(6))
             visibility = GONE
         }
 
-        // Start/Stop button
-        voiceStartStopButton = TextView(context).apply {
-            text = "Start"
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            layoutParams = LayoutParams(dp(60), dp(28)).apply {
-                marginEnd = dp(8)
-            }
-            background = pillBg("#3A3A3C")
-            setOnClickListener { toggleVoiceRecognition() }
+        // --- Top row: Status + Close ---
+        val topRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dp(24))
+            gravity = Gravity.CENTER_VERTICAL
         }
-        bar.addView(voiceStartStopButton)
 
-        // Status text
+        // Mic indicator dot
+        val micDot = View(context).apply {
+            layoutParams = LayoutParams(dp(8), dp(8)).apply { marginEnd = dp(6) }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#636366"))
+                cornerRadius = dp(4).toFloat()
+            }
+        }
+        topRow.addView(micDot)
+
         voiceStatusText = TextView(context).apply {
-            text = "Tap Start to voice type..."
+            text = "Tap mic to start voice typing"
             setTextColor(Color.parseColor("#8E8E93"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f)
             gravity = Gravity.CENTER_VERTICAL
             maxLines = 1
         }
-        bar.addView(voiceStatusText)
+        topRow.addView(voiceStatusText)
 
-        // Language toggle
-        voiceLangButton = TextView(context).apply {
-            text = "EN"
-            setTextColor(Color.parseColor("#66FFFFFF"))
+        // Close button
+        topRow.addView(TextView(context).apply {
+            text = "▲ Hide"
+            setTextColor(Color.parseColor("#48484A"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            letterSpacing = 0.05f
-            layoutParams = LayoutParams(dp(40), dp(28))
-            background = pillBg("#2A2A2C")
+            setOnClickListener { hideVoiceBar() }
+        })
+
+        bar.addView(topRow)
+
+        // --- Middle row: Visualizer + Controls ---
+        val midRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dp(50)).apply {
+                topMargin = dp(8)
+            }
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        // Language toggle (left)
+        voiceLangButton = TextView(context).apply {
+            text = "EN"
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            letterSpacing = 0.08f
+            layoutParams = LayoutParams(dp(44), dp(32))
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#1C1C1E"))
+                cornerRadius = dp(16).toFloat()
+                setStroke(dp(1), Color.parseColor("#333333"))
+            }
             setOnClickListener { toggleVoiceLanguage() }
         }
-        bar.addView(voiceLangButton)
+        midRow.addView(voiceLangButton)
 
-        // Close button
-        val closeBtn = TextView(context).apply {
-            text = "▲"
-            setTextColor(Color.parseColor("#636366"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+        // Waveform visualizer (center)
+        val waveformContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            layoutParams = LayoutParams(dp(30), dp(28)).apply {
-                marginStart = dp(4)
-            }
-            setOnClickListener { hideVoiceBar() }
+            layoutParams = LayoutParams(0, dp(40), 1f)
         }
-        bar.addView(closeBtn)
+
+        voiceBars.clear()
+        val barCount = 24
+        for (i in 0 until barCount) {
+            val barView = View(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(3), dp(6)).apply {
+                    marginStart = dp(1)
+                    marginEnd = dp(1)
+                }
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#333333"))
+                    cornerRadius = dp(2).toFloat()
+                }
+            }
+            voiceBars.add(barView)
+            waveformContainer.addView(barView)
+        }
+        midRow.addView(waveformContainer)
+
+        // Mic button (right)
+        voiceStartStopButton = TextView(context).apply {
+            text = "🎤"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            gravity = Gravity.CENTER
+            layoutParams = LayoutParams(dp(44), dp(44))
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#1C1C1E"))
+                cornerRadius = dp(22).toFloat()
+                setStroke(dp(1), Color.parseColor("#333333"))
+            }
+            setOnClickListener { toggleVoiceRecognition() }
+        }
+        midRow.addView(voiceStartStopButton)
+
+        bar.addView(midRow)
+
+        // --- Bottom hint ---
+        bar.addView(TextView(context).apply {
+            text = "Speak clearly · EN or বাংলা"
+            setTextColor(Color.parseColor("#333333"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
+            gravity = Gravity.CENTER
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dp(16)).apply {
+                topMargin = dp(4)
+            }
+        })
 
         voiceBarContainer = bar
         return bar
+    }
+
+    private fun startVoiceAnimation() {
+        voiceAnimHandler = Handler(Looper.getMainLooper())
+        voiceAnimRunnable = object : Runnable {
+            override fun run() {
+                voiceBars.forEach { barView ->
+                    val randomHeight = dp(4) + (Math.random() * dp(28)).toInt()
+                    val params = barView.layoutParams as LinearLayout.LayoutParams
+                    params.height = randomHeight
+                    barView.layoutParams = params
+                    (barView.background as? GradientDrawable)?.setColor(
+                        if (Math.random() > 0.3) Color.parseColor("#0A84FF") else Color.parseColor("#333333")
+                    )
+                }
+                voiceAnimHandler?.postDelayed(this, 80)
+            }
+        }
+        voiceAnimHandler?.post(voiceAnimRunnable!!)
+    }
+
+    private fun stopVoiceAnimation() {
+        voiceAnimRunnable?.let { voiceAnimHandler?.removeCallbacks(it) }
+        voiceAnimRunnable = null
+        voiceBars.forEach { barView ->
+            val params = barView.layoutParams as LinearLayout.LayoutParams
+            params.height = dp(6)
+            barView.layoutParams = params
+            (barView.background as? GradientDrawable)?.setColor(Color.parseColor("#333333"))
+        }
     }
 
     private fun toggleVoiceBar() {
         voiceBarContainer?.let { bar ->
             if (bar.visibility == GONE) {
                 bar.visibility = VISIBLE
+                // Close clipboard panel if open
+                clipboardPanel?.visibility = GONE
                 initSpeechRecognizer()
             } else {
                 hideVoiceBar()
@@ -163,6 +280,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
 
     private fun hideVoiceBar() {
         stopVoiceRecognition()
+        stopVoiceAnimation()
         voiceBarContainer?.visibility = GONE
     }
 
@@ -185,8 +303,14 @@ class KeyboardView(context: Context) : LinearLayout(context) {
             setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) {
                     isListening = true
-                    voiceStartStopButton?.text = "Stop"
+                    voiceStartStopButton?.text = "⏹"
                     voiceStatusText?.text = "Listening..."
+                    voiceStartStopButton?.background = GradientDrawable().apply {
+                        setColor(Color.parseColor("#FF453A"))
+                        cornerRadius = dp(22).toFloat()
+                    }
+                    // Update mic dot color
+                    startVoiceAnimation()
                 }
                 override fun onBeginningOfSpeech() {
                     voiceStatusText?.text = "Listening..."
@@ -195,12 +319,24 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                 override fun onBufferReceived(buffer: ByteArray?) {}
                 override fun onEndOfSpeech() {
                     isListening = false
-                    voiceStartStopButton?.text = "Start"
+                    voiceStartStopButton?.text = "🎤"
+                    voiceStartStopButton?.background = GradientDrawable().apply {
+                        setColor(Color.parseColor("#1C1C1E"))
+                        cornerRadius = dp(22).toFloat()
+                        setStroke(dp(1), Color.parseColor("#333333"))
+                    }
                     voiceStatusText?.text = "Processing..."
+                    stopVoiceAnimation()
                 }
                 override fun onError(error: Int) {
                     isListening = false
-                    voiceStartStopButton?.text = "Start"
+                    voiceStartStopButton?.text = "🎤"
+                    voiceStartStopButton?.background = GradientDrawable().apply {
+                        setColor(Color.parseColor("#1C1C1E"))
+                        cornerRadius = dp(22).toFloat()
+                        setStroke(dp(1), Color.parseColor("#333333"))
+                    }
+                    stopVoiceAnimation()
                     val msg = when (error) {
                         SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected. Try again."
                         SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech detected. Try again."
@@ -213,7 +349,13 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                 }
                 override fun onResults(results: Bundle?) {
                     isListening = false
-                    voiceStartStopButton?.text = "Start"
+                    voiceStartStopButton?.text = "🎤"
+                    voiceStartStopButton?.background = GradientDrawable().apply {
+                        setColor(Color.parseColor("#1C1C1E"))
+                        cornerRadius = dp(22).toFloat()
+                        setStroke(dp(1), Color.parseColor("#333333"))
+                    }
+                    stopVoiceAnimation()
                     val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     val text = matches?.firstOrNull() ?: ""
                     if (text.isNotEmpty()) {
@@ -267,7 +409,13 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     private fun stopVoiceRecognition() {
         speechRecognizer?.stopListening()
         isListening = false
-        voiceStartStopButton?.text = "Start"
+        voiceStartStopButton?.text = "🎤"
+        voiceStartStopButton?.background = GradientDrawable().apply {
+            setColor(Color.parseColor("#1C1C1E"))
+            cornerRadius = dp(22).toFloat()
+            setStroke(dp(1), Color.parseColor("#333333"))
+        }
+        stopVoiceAnimation()
     }
 
     private fun toggleVoiceLanguage() {
@@ -283,26 +431,199 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     }
 
     fun cleanup() {
+        backspaceRunnable?.let { backspaceHandler.removeCallbacks(it) }
+        backspaceRunnable = null
+        voiceAnimRunnable?.let { voiceAnimHandler?.removeCallbacks(it) }
+        voiceAnimRunnable = null
+        voiceAnimHandler = null
         speechRecognizer?.destroy()
         speechRecognizer = null
         isListening = false
     }
 
-    // ─── Clipboard Paste ─────────────────────────────────────────
+    // ─── Clipboard Panel ──────────────────────────────────────────
 
-    private fun handleClipboardPaste() {
+    private fun createClipboardPanel(): LinearLayout {
+        val panel = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dp(200)).apply {
+                bottomMargin = dp(4)
+            }
+            setBackgroundColor(Color.parseColor("#1C1C1E"))
+            val pad = dp(8)
+            setPadding(pad, pad, pad, pad)
+            visibility = GONE
+        }
+
+        // Header row
+        val headerRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dp(30))
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        headerRow.addView(TextView(context).apply {
+            text = "CLIPBOARD HISTORY"
+            setTextColor(Color.parseColor("#636366"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.05f
+            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f)
+            gravity = Gravity.CENTER_VERTICAL
+        })
+
+        // Clear all button
+        headerRow.addView(TextView(context).apply {
+            text = "Clear All"
+            setTextColor(Color.parseColor("#FF453A"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER_VERTICAL or Gravity.END
+            setOnClickListener {
+                clipHistory.clear()
+                refreshClipboardPanel()
+            }
+        })
+
+        // Close button
+        headerRow.addView(TextView(context).apply {
+            text = "▲"
+            setTextColor(Color.parseColor("#636366"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            gravity = Gravity.CENTER
+            layoutParams = LayoutParams(dp(30), LayoutParams.MATCH_PARENT)
+            setOnClickListener { clipboardPanel?.visibility = GONE }
+        })
+
+        panel.addView(headerRow)
+
+        // Scrollable list
+        val scrollView = android.widget.ScrollView(context).apply {
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f)
+        }
+
+        clipboardListContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+        }
+        scrollView.addView(clipboardListContainer)
+        panel.addView(scrollView)
+
+        clipboardPanel = panel
+
+        // Load initial clipboard content
+        loadInitialClipboard()
+
+        return panel
+    }
+
+    private fun loadInitialClipboard() {
         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
         val clip = cm.primaryClip
         if (clip != null && clip.itemCount > 0) {
             val text = clip.getItemAt(0).text?.toString() ?: ""
-            if (text.isNotEmpty()) {
-                onPaste?.invoke(text)
-                Toast.makeText(context, "Pasted from clipboard", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "Clipboard is empty", Toast.LENGTH_SHORT).show()
+            if (text.isNotEmpty() && !clipHistory.contains(text)) {
+                clipHistory.add(0, text)
             }
-        } else {
-            Toast.makeText(context, "Clipboard is empty", Toast.LENGTH_SHORT).show()
+        }
+        refreshClipboardPanel()
+    }
+
+    private fun toggleClipboardPanel() {
+        clipboardPanel?.let { panel ->
+            if (panel.visibility == GONE) {
+                // Read latest clipboard before showing
+                loadInitialClipboard()
+                panel.visibility = VISIBLE
+                // Hide voice bar if open
+                voiceBarContainer?.visibility = GONE
+                stopVoiceRecognition()
+            } else {
+                panel.visibility = GONE
+            }
+        }
+    }
+
+    private fun refreshClipboardPanel() {
+        clipboardListContainer?.let { container ->
+            container.removeAllViews()
+
+            if (clipHistory.isEmpty()) {
+                container.addView(TextView(context).apply {
+                    text = "No clips yet.\nCopy text anywhere to track it here."
+                    setTextColor(Color.parseColor("#636366"))
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                    gravity = Gravity.CENTER
+                    val pad = dp(20)
+                    setPadding(0, pad, 0, pad)
+                })
+                return
+            }
+
+            clipHistory.forEachIndexed { index, clipText ->
+                val item = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                        bottomMargin = dp(4)
+                    }
+                    val pad = dp(10)
+                    setPadding(pad, pad, pad, pad)
+                    background = GradientDrawable().apply {
+                        setColor(Color.parseColor("#2C2C2E"))
+                        cornerRadius = dp(6).toFloat()
+                    }
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+
+                // Clip text
+                item.addView(TextView(context).apply {
+                    text = clipText
+                    setTextColor(Color.WHITE)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                    typeface = Typeface.MONOSPACE
+                    maxLines = 2
+                    layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+                })
+
+                // Paste button
+                item.addView(TextView(context).apply {
+                    text = "Paste"
+                    setTextColor(Color.parseColor("#0A84FF"))
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+                    typeface = Typeface.DEFAULT_BOLD
+                    setPadding(dp(8), 0, 0, 0)
+                    setOnClickListener {
+                        onPaste?.invoke(clipText)
+                        clipboardPanel?.visibility = GONE
+                    }
+                })
+
+                // Delete button
+                item.addView(TextView(context).apply {
+                    text = "✕"
+                    setTextColor(Color.parseColor("#636366"))
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                    setPadding(dp(8), 0, 0, 0)
+                    setOnClickListener {
+                        clipHistory.removeAt(index)
+                        refreshClipboardPanel()
+                    }
+                })
+
+                container.addView(item)
+            }
+        }
+    }
+
+    /** Called from service when clipboard changes externally */
+    fun onClipboardChanged(text: String) {
+        if (text.isNotEmpty() && (clipHistory.isEmpty() || clipHistory.first() != text)) {
+            clipHistory.add(0, text)
+            if (clipHistory.size > 30) clipHistory.removeAt(clipHistory.lastIndex)
+            // Refresh panel if visible
+            if (clipboardPanel?.visibility == VISIBLE) {
+                refreshClipboardPanel()
+            }
         }
     }
 
@@ -387,7 +708,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                     if (event.action == MotionEvent.ACTION_UP) {
                         when (iconType) {
                             IconView.IconType.VOICE -> toggleVoiceBar()
-                            IconView.IconType.CLIPBOARD -> handleClipboardPaste()
+                            IconView.IconType.CLIPBOARD -> toggleClipboardPanel()
                             IconView.IconType.TRANSLATE -> Toast.makeText(context, "Translate — Type in the text field, then switch to Translate tab", Toast.LENGTH_SHORT).show()
                             IconView.IconType.SETTINGS -> Toast.makeText(context, "Settings — Coming Soon!", Toast.LENGTH_SHORT).show()
                             else -> {}
@@ -480,8 +801,48 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         val row = createRow()
         addSpecialKey(row, "⇧", 1.5f) { toggleShift() }.also { shiftKeys.add(it) }
         "zxcvbnm".forEach { addKey(row, it.toString()) }
-        addSpecialKey(row, "⌫", 1.5f) { onBackspace?.invoke() }
+        addBackspaceKey(row)
         return row
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun addBackspaceKey(row: LinearLayout) {
+        val tv = createKeyView("⌫")
+        tv.layoutParams = LinearLayout.LayoutParams(0, dp(48), 1.5f).apply {
+            marginStart = dp(3)
+            marginEnd = dp(3)
+        }
+        tv.background = keyBgSolid("#48484A")
+
+        tv.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    (v as TextView).background = keyBgSolid("#636366")
+                    // Fire immediately
+                    onBackspace?.invoke()
+                    // Start repeating after delay
+                    backspaceRunnable = object : Runnable {
+                        override fun run() {
+                            onBackspace?.invoke()
+                            backspaceHandler.postDelayed(this, BACKSPACE_REPEAT_DELAY)
+                        }
+                    }
+                    backspaceHandler.postDelayed(backspaceRunnable!!, BACKSPACE_INITIAL_DELAY)
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    (v as TextView).background = keyBgSolid("#48484A")
+                    // Stop repeating
+                    backspaceRunnable?.let { backspaceHandler.removeCallbacks(it) }
+                    backspaceRunnable = null
+                    true
+                }
+                else -> false
+            }
+        }
+
+        row.addView(tv)
     }
 
     private fun createKeyRow4(): LinearLayout {
