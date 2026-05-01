@@ -80,56 +80,50 @@ class KeyboardView(context: Context) : LinearLayout(context) {
             layoutParams = LayoutParams(0, 1, 1f)
         })
 
-        // Right: action buttons
+        // Right: action buttons (icons only)
         val icons = listOf(
-            IconView.IconType.TRANSLATE to "Translate",
-            IconView.IconType.CLIPBOARD to "Clipboard",
-            IconView.IconType.VOICE to "Voice",
-            IconView.IconType.SETTINGS to "Settings"
+            IconView.IconType.TRANSLATE,
+            IconView.IconType.CLIPBOARD,
+            IconView.IconType.VOICE,
+            IconView.IconType.SETTINGS
         )
 
-        icons.forEach { (iconType, label) ->
-            header.addView(createHeaderButton(iconType, label))
+        icons.forEach { iconType ->
+            header.addView(createHeaderButton(iconType))
         }
 
         return header
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun createHeaderButton(iconType: IconView.IconType, label: String): LinearLayout {
+    private fun createHeaderButton(iconType: IconView.IconType): LinearLayout {
         val container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             layoutParams = LayoutParams(
-                LayoutParams.WRAP_CONTENT, dp(34)
+                dp(38), dp(34)
             ).apply {
                 marginStart = dp(4)
                 marginEnd = dp(4)
             }
-            val p = dp(10)
-            setPadding(p, 0, p, 0)
+            val p = dp(8)
+            setPadding(p, p, p, p)
             background = pillBg("#3A3A3C")
         }
 
         val iconView = IconView(context, iconType).apply {
-            layoutParams = LayoutParams(dp(16), dp(16))
-        }
-
-        val labelView = TextView(context).apply {
-            text = label
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
-            setTextColor(Color.parseColor("#A0A0A8"))
-            typeface = Typeface.DEFAULT_BOLD
-            letterSpacing = 0.02f
-            layoutParams = LayoutParams(
-                LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT
-            ).apply {
-                marginStart = dp(5)
-            }
+            layoutParams = LayoutParams(dp(18), dp(18))
         }
 
         container.addView(iconView)
-        container.addView(labelView)
+
+        val iconName = when (iconType) {
+            IconView.IconType.TRANSLATE -> "Translate"
+            IconView.IconType.CLIPBOARD -> "Clipboard"
+            IconView.IconType.VOICE -> "Voice"
+            IconView.IconType.SETTINGS -> "Settings"
+            IconView.IconType.KEYBOARD -> "Keyboard"
+        }
 
         container.setOnTouchListener { v, event ->
             when (event.action) {
@@ -141,7 +135,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.background = pillBg("#3A3A3C")
                     if (event.action == MotionEvent.ACTION_UP) {
-                        Toast.makeText(context, "$label — Coming Soon!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "$iconName — Coming Soon!", Toast.LENGTH_SHORT).show()
                     }
                     true
                 }

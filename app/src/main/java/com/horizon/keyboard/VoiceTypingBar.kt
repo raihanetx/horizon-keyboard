@@ -188,12 +188,13 @@ fun VoiceTypingBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // ── Language Button (micro, rounded-full, hairline border) ──
+            // ── Action Button (Start/Stop) — LEFT side ──
             MicroButton(
-                label = currentLang.label,
-                borderColor = white20,
-                textColor = white40,
-                onClick = { toggleLang() }
+                label = if (isListening) "Stop" else "Start",
+                borderColor = if (isListening) white80 else white40,
+                textColor = white,
+                minWidth = 65.dp,
+                onClick = { toggleAction() }
             )
 
             // ── CENTER: Box Beat Visualizer ──
@@ -204,13 +205,12 @@ fun VoiceTypingBar(
                     .height(32.dp)
             )
 
-            // ── Action Button (Start/Stop) ──
+            // ── Language Button (micro, rounded-full, hairline border) — RIGHT side ──
             MicroButton(
-                label = if (isListening) "Stop" else "Start",
-                borderColor = if (isListening) white80 else white40,
-                textColor = white,
-                minWidth = 65.dp,
-                onClick = { toggleAction() }
+                label = currentLang.label,
+                borderColor = white20,
+                textColor = white40,
+                onClick = { toggleLang() }
             )
         }
 

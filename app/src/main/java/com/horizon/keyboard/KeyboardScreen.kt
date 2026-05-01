@@ -1,6 +1,8 @@
 package com.horizon.keyboard
 
+import android.content.Context
 import android.view.HapticFeedbackConstants
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.expandVertically
@@ -13,6 +15,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
@@ -27,10 +30,12 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -431,16 +436,271 @@ fun PanelBox(label: String, text: String, borderColor: Color = Color(0xFF3A3A3C)
 
 @Composable
 fun TranslatePanel(sourceText: String) {
-    Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-        PanelBox(label = "Translation Source", text = sourceText)
-        PanelBox(label = "Result", text = "Ready.", borderColor = ColorAccent, labelColor = ColorAccent)
+    var inputText by remember { mutableStateOf(sourceText) }
+    var translatedText by remember { mutableStateOf("") }
+    var direction by remember { mutableStateOf("en-bn") } // en-bn or bn-en
+
+    // Simple dictionary for demo translations
+    val enToBn = remember {
+        mapOf(
+            "hello" to "হ্যালো", "hi" to "হাই", "how are you" to "কেমন আছেন",
+            "thank you" to "ধন্যবাদ", "thanks" to "ধন্যবাদ", "good" to "ভালো",
+            "bad" to "খারাপ", "yes" to "হ্যাঁ", "no" to "না",
+            "please" to "দয়া করে", "sorry" to "দুঃখিত", "help" to "সাহায্য",
+            "what" to "কি", "where" to "কোথায়", "when" to "কখন",
+            "why" to "কেন", "who" to "কে", "how" to "কিভাবে",
+            "i" to "আমি", "you" to "তুমি", "he" to "সে", "she" to "সে",
+            "we" to "আমরা", "they" to "তারা", "am" to "আছি", "is" to "আছে",
+            "are" to "আছ", "was" to "ছিল", "were" to "ছিল",
+            "love" to "ভালোবাসা", "like" to "পছন্দ", "want" to "চাই",
+            "need" to "প্রয়োজন", "eat" to "খাওয়া", "drink" to "পানীয়",
+            "go" to "যাওয়া", "come" to "আসা", "see" to "দেখা",
+            "hear" to "শোনা", "speak" to "বলা", "write" to "লেখা",
+            "read" to "পড়া", "work" to "কাজ", "home" to "বাড়ি",
+            "school" to "স্কুল", "water" to "পানি", "food" to "খাবার",
+            "friend" to "বন্ধু", "family" to "পরিবার", "mother" to "মা",
+            "father" to "বাবা", "brother" to "ভাই", "sister" to "বোন",
+            "today" to "আজ", "tomorrow" to "কাল", "yesterday" to "গতকাল",
+            "morning" to "সকাল", "night" to "রাত", "day" to "দিন",
+            "time" to "সময়", "name" to "নাম", "man" to "মানুষ",
+            "woman" to "মহিলা", "child" to "শিশু", "big" to "বড়",
+            "small" to "ছোট", "new" to "নতুন", "old" to "পুরানো",
+            "happy" to "সুখী", "sad" to "দুঃখী", "beautiful" to "সুন্দর",
+            "one" to "এক", "two" to "দুই", "three" to "তিন",
+            "four" to "চার", "five" to "পাঁচ", "six" to "ছয়",
+            "seven" to "সাত", "eight" to "আট", "nine" to "নয়", "ten" to "দশ"
+        )
+    }
+
+    val bnToEn = remember { enToBn.entries.associate { (k, v) -> v to k } }
+
+    fun translate(text: String): String {
+        if (text.isBlank()) return ""
+        val dict = if (direction == "en-bn") enToBn else bnToEn
+        // Try exact match first
+        dict[text.trim().lowercase()]?.let { return it }
+        // Try word-by-word
+        val words = text.trim().split("\\s+".toRegex())
+        val result = words.joinToString(" ") { word ->
+            dict[word.lowercase()] ?: word
+        }
+        return result
+    }
+
+    LaunchedEffect(inputText, direction) {
+        translatedText = translate(inputText)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp)
+    ) {
+        // Direction toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val fromLang = if (direction == "en-bn") "English" else "বাংলা"
+            val toLang = if (direction == "en-bn") "বাংলা" else "English"
+            Text(
+                text = "$fromLang → $toLang",
+                color = ColorAccent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable {
+                    direction = if (direction == "en-bn") "bn-en" else "en-bn"
+                }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "⇄",
+                color = ColorTextMuted,
+                fontSize = 16.sp,
+                modifier = Modifier.clickable {
+                    direction = if (direction == "en-bn") "bn-en" else "en-bn"
+                    inputText = translatedText
+                }
+            )
+        }
+
+        // Input area
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .background(Color(0xFF1C1C1E), RoundedCornerShape(8.dp))
+                .border(1.dp, Color(0xFF3A3A3C), RoundedCornerShape(8.dp))
+                .padding(10.dp)
+        ) {
+            BasicTextField(
+                value = inputText,
+                onValueChange = { inputText = it },
+                textStyle = TextStyle(
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace
+                ),
+                modifier = Modifier.fillMaxSize(),
+                cursorBrush = SolidColor(ColorAccent)
+            )
+            if (inputText.isEmpty()) {
+                Text(
+                    text = "Type text to translate...",
+                    color = ColorTextDark,
+                    fontSize = 14.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Result area
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .background(Color(0xFF2C2C2E), RoundedCornerShape(8.dp))
+                .border(1.dp, ColorAccent.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                .padding(10.dp)
+        ) {
+            Text(
+                text = translatedText.ifEmpty { "Translation appears here..." },
+                color = if (translatedText.isEmpty()) ColorTextDark else Color.White,
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
     }
 }
 
 @Composable
 fun ClipboardPanel() {
-    Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-        PanelBox(label = "Clips", text = "Hello, World!")
+    val context = LocalContext.current
+    var clipboardText by remember { mutableStateOf("") }
+    var clipHistory by remember { mutableStateOf(mutableListOf<String>()) }
+
+    // Read system clipboard on composition and periodically
+    LaunchedEffect(Unit) {
+        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = cm.primaryClip
+        if (clip != null && clip.itemCount > 0) {
+            val text = clip.getItemAt(0).text?.toString() ?: ""
+            if (text.isNotEmpty()) {
+                clipboardText = text
+                if (clipHistory.isEmpty() || clipHistory.first() != text) {
+                    clipHistory.add(0, text)
+                    if (clipHistory.size > 20) clipHistory = clipHistory.take(20).toMutableList()
+                }
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp)
+    ) {
+        // Current clipboard
+        PanelBox(
+            label = "Current Clipboard",
+            text = clipboardText.ifEmpty { "No text in clipboard" },
+            borderColor = ColorAccent,
+            labelColor = ColorAccent
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // History header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "CLIP HISTORY",
+                fontSize = 9.sp,
+                color = ColorTextDark,
+                fontWeight = FontWeight.ExtraBold
+            )
+            if (clipHistory.isNotEmpty()) {
+                Text(
+                    text = "Clear",
+                    fontSize = 10.sp,
+                    color = ColorRed,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable {
+                        clipHistory = mutableListOf()
+                        clipboardText = ""
+                    }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Clip history list
+        if (clipHistory.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No clips yet.\nCopy text to start tracking.",
+                    color = ColorTextDark,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(clipHistory.size) { index ->
+                    val clip = clipHistory[index]
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFF1C1C1E), RoundedCornerShape(6.dp))
+                            .border(1.dp, Color(0xFF3A3A3C), RoundedCornerShape(6.dp))
+                            .clickable {
+                                // Copy to clipboard
+                                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                cm.setPrimaryClip(android.content.ClipData.newPlainText("horizon", clip))
+                                clipboardText = clip
+                                Toast.makeText(context, "Copied!", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = clip,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Copy",
+                            color = ColorAccent,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
