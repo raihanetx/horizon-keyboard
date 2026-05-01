@@ -1,7 +1,5 @@
 package com.horizon.keyboard
 
-import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -24,16 +22,17 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.random.Random
 
 /**
  * Horizon Voice — Monochrome Beat
- * Exact Jetpack Compose translation of the HTML UI.
+ * EXACT Jetpack Compose translation of the HTML file "voice typing ui"
  *
- * Palette: Gray (#121212), White (#FFFFFF)
- * Design: Micro buttons, Box animation, Thin borders.
+ * Line-by-line mapping from Tailwind classes → Compose modifiers.
  */
 
 // ─── Language State ───────────────────────────────────────────────
@@ -50,33 +49,42 @@ data class BeatBarParams(
     val delayMs: Long
 )
 
+// ─── Exact color palette from HTML ────────────────────────────────
+// body { background: #000 }
+private val ColorBody = Color(0xFF000000)
+// bg-[#121212]
+private val ColorToolbar = Color(0xFF121212)
+// white
+private val ColorWhite = Color.White
+// white/10
+private val ColorWhite10 = Color(0x1AFFFFFF)
+// white/20
+private val ColorWhite20 = Color(0x33FFFFFF)
+// white/40
+private val ColorWhite40 = Color(0x66FFFFFF)
+// white/80
+private val ColorWhite80 = Color(0xCCFFFFFF)
+
 // ─── Main Voice Typing Bar ────────────────────────────────────────
 
 @Composable
 fun VoiceTypingBar(
-    onTextRecognized: (String) -> Unit,
-    onClose: () -> Unit
+    onTextRecognized: (String) -> Unit
 ) {
     val context = LocalContext.current
     var isListening by remember { mutableStateOf(false) }
     var currentLang by remember { mutableStateOf(VoiceLang.ENGLISH) }
-    var partialText by remember { mutableStateOf("") }
 
-    // SpeechRecognizer reference
     val speechRecognizer = remember {
         if (SpeechRecognizer.isRecognitionAvailable(context)) {
             SpeechRecognizer.createSpeechRecognizer(context)
         } else null
     }
 
-    // Cleanup on dispose
     DisposableEffect(Unit) {
-        onDispose {
-            speechRecognizer?.destroy()
-        }
+        onDispose { speechRecognizer?.destroy() }
     }
 
-    // Build the recognition intent
     fun buildIntent(): Intent {
         return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -87,37 +95,22 @@ fun VoiceTypingBar(
         }
     }
 
-    // Set up recognition listener
     fun startListening() {
         speechRecognizer?.let { recognizer ->
             recognizer.setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) {
-                    isListening = true
-                    partialText = ""
-                }
+                override fun onReadyForSpeech(params: Bundle?) { isListening = true }
                 override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(rmsdB: Float) {}
                 override fun onBufferReceived(buffer: ByteArray?) {}
-                override fun onEndOfSpeech() {
-                    isListening = false
-                }
-                override fun onError(error: Int) {
-                    isListening = false
-                    partialText = ""
-                }
+                override fun onEndOfSpeech() { isListening = false }
+                override fun onError(error: Int) { isListening = false }
                 override fun onResults(results: Bundle?) {
                     isListening = false
                     val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     val text = matches?.firstOrNull() ?: ""
-                    if (text.isNotEmpty()) {
-                        onTextRecognized(text)
-                    }
-                    partialText = ""
+                    if (text.isNotEmpty()) onTextRecognized(text)
                 }
-                override fun onPartialResults(partialResults: Bundle?) {
-                    val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    partialText = matches?.firstOrNull() ?: ""
-                }
+                override fun onPartialResults(partialResults: Bundle?) {}
                 override fun onEvent(eventType: Int, params: Bundle?) {}
             })
             recognizer.startListening(buildIntent())
@@ -130,117 +123,100 @@ fun VoiceTypingBar(
     }
 
     fun toggleAction() {
-        if (isListening) {
-            stopListening()
-        } else {
-            startListening()
-        }
+        if (isListening) stopListening() else startListening()
     }
 
     fun toggleLang() {
         currentLang = if (currentLang == VoiceLang.ENGLISH) VoiceLang.BANGLA else VoiceLang.ENGLISH
-        // If currently listening, restart with new language
         if (isListening) {
             stopListening()
-            // Small delay then restart
-            speechRecognizer?.let {
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    startListening()
-                }, 200)
-            }
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                startListening()
+            }, 200)
         }
     }
 
-    // ─── UI ────────────────────────────────────────────────────────
-
-    val bgColor = Color(0xFF121212)
-    val white = Color.White
-    val white20 = Color(0x33FFFFFF)  // white/20
-    val white40 = Color(0x66FFFFFF)  // white/40
-    val white80 = Color(0xCCFFFFFF)  // white/80
-
+    // ─── HTML: <body class="h-screen flex flex-col justify-end overflow-hidden"> ───
+    // body { background: #000 }
+    // The toolbar sits at the bottom of a black screen
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(bgColor)
+            .background(ColorBody),  // body { background: #000 }
+        verticalArrangement = Arrangement.Bottom  // justify-end
     ) {
-        // Partial text display (when recognizing)
-        if (partialText.isNotEmpty()) {
-            Text(
-                text = partialText,
-                color = Color(0xFF8E8E93),
-                fontSize = 11.sp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                maxLines = 1
-            )
-        }
-
-        // Voice bar — exact replica of the HTML toolbar
+        // ─── HTML: <div id="voiceBar" class="toolbar-height w-full bg-[#121212]
+        //           flex items-center px-4 gap-3 border-t border-white/10
+        //           relative pb-[env(safe-area-inset-bottom)] transition-none"> ───
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
-                .background(bgColor)
-                .border(0.5.dp, Color.White.copy(alpha = 0.1f))
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .height(52.dp)  // .toolbar-height { height: 52px }
+                .background(ColorToolbar)  // bg-[#121212]
+                .border(0.5.dp, ColorWhite10)  // border-t border-white/10 (top only)
+                .padding(horizontal = 16.dp),  // px-4
+            verticalAlignment = Alignment.CenterVertically,  // items-center
+            horizontalArrangement = Arrangement.spacedBy(12.dp)  // gap-3
         ) {
-            // ── Action Button (Start/Stop) — LEFT side ──
+            // ─── HTML: <button id="langBtn" class="flex-shrink-0 h-6 px-3
+            //           rounded-full border-hairline border-white/20 bg-transparent
+            //           text-[8px] font-bold uppercase tracking-tighter
+            //           text-white/40 active:scale-95 transition-all"> ───
             MicroButton(
-                label = if (isListening) "Stop" else "Start",
-                borderColor = if (isListening) white80 else white40,
-                textColor = white,
-                minWidth = 65.dp,
-                onClick = { toggleAction() }
+                label = currentLang.label,
+                fontSize = 8.sp,  // text-[8px]
+                fontWeight = FontWeight.Bold,  // font-bold = 700
+                letterSpacing = TextUnit(-0.05f, TextUnitType.Em),  // tracking-tighter = -0.05em
+                textColor = ColorWhite40,  // text-white/40
+                borderColor = ColorWhite20,  // border-white/20
+                paddingHorizontal = 12.dp,  // px-3
+                height = 24.dp,  // h-6
+                onClick = { toggleLang() }
             )
 
-            // ── CENTER: Box Beat Visualizer ──
+            // ─── HTML: <div id="beatContainer" class="flex-1 flex items-center
+            //           justify-center gap-[4px] h-8 overflow-hidden"> ───
             BoxBeatVisualizer(
                 isListening = isListening,
                 modifier = Modifier
-                    .weight(1f)
-                    .height(32.dp)
+                    .weight(1f)  // flex-1
+                    .height(32.dp)  // h-8
             )
 
-            // ── Language Button (micro, rounded-full, hairline border) — RIGHT side ──
+            // ─── HTML: <button id="actionBtn" class="flex-shrink-0 h-6 min-w-[65px]
+            //           px-2 rounded-full border-hairline border-white/40 bg-transparent
+            //           text-[8px] font-black uppercase tracking-widest
+            //           text-white active:scale-95 transition-all"> ───
             MicroButton(
-                label = currentLang.label,
-                borderColor = white20,
-                textColor = white40,
-                onClick = { toggleLang() }
-            )
-        }
-
-        // Close row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(bgColor)
-                .clickable { onClose() }
-                .padding(vertical = 6.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "▲ Hide Voice",
-                color = Color(0xFF636366),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold
+                label = if (isListening) "Stop" else "Start",
+                fontSize = 8.sp,  // text-[8px]
+                fontWeight = FontWeight.Black,  // font-black = 900
+                letterSpacing = TextUnit(0.1f, TextUnitType.Em),  // tracking-widest = 0.1em
+                textColor = ColorWhite,  // text-white
+                borderColor = if (isListening) ColorWhite80 else ColorWhite40,  // border-white/40 → white/80
+                paddingHorizontal = 8.dp,  // px-2
+                minWidth = 65.dp,  // min-w-[65px]
+                height = 24.dp,  // h-6
+                onClick = { toggleAction() }
             )
         }
     }
 }
 
-// ─── Micro Button (matches HTML micro buttons) ────────────────────
+// ─── Micro Button ─────────────────────────────────────────────────
+// Matches HTML: rounded-full, border-hairline (0.5dp), bg-transparent, text-[8px]
 
 @Composable
-fun MicroButton(
+private fun MicroButton(
     label: String,
-    borderColor: Color,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    fontWeight: FontWeight,
+    letterSpacing: androidx.compose.ui.unit.TextUnit,
     textColor: Color,
+    borderColor: Color,
+    paddingHorizontal: androidx.compose.ui.unit.Dp = 12.dp,
     minWidth: androidx.compose.ui.unit.Dp = 0.dp,
+    height: androidx.compose.ui.unit.Dp = 24.dp,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -248,40 +224,40 @@ fun MicroButton(
     Box(
         modifier = Modifier
             .defaultMinSize(minWidth = minWidth)
-            .height(24.dp)
+            .height(height)  // h-6
             .clip(RoundedCornerShape(100f))  // rounded-full
             .border(0.5.dp, borderColor, RoundedCornerShape(100f))  // border-hairline
             .clickable(
                 interactionSource = interactionSource,
-                indication = null
+                indication = null  // no ripple (bg-transparent)
             ) { onClick() }
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = paddingHorizontal),
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = label,
+            text = label.uppercase(),  // uppercase
             color = textColor,
-            fontSize = 8.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 0.5.sp,  // tracking-widest
+            fontSize = fontSize,
+            fontWeight = fontWeight,
+            letterSpacing = letterSpacing,
             textAlign = TextAlign.Center
         )
     }
 }
 
-// ─── Box Beat Visualizer (exact HTML animation) ───────────────────
+// ─── Box Beat Visualizer ──────────────────────────────────────────
+// HTML: 20 bars, gap-[4px], h-8, overflow-hidden
 
 @Composable
-fun BoxBeatVisualizer(
+private fun BoxBeatVisualizer(
     isListening: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Generate 20 bars with random durations and delays (matches HTML)
     val bars = remember {
-        List(20) {
+        List(20) {  // totalBars = 20
             BeatBarParams(
-                durationMs = (350 + Random.nextFloat() * 450).toLong(),
-                delayMs = (Random.nextFloat() * 500).toLong()
+                durationMs = (350 + Random.nextFloat() * 450).toLong(),  // 0.35 + Math.random() * 0.45
+                delayMs = (Random.nextFloat() * 500).toLong()  // Math.random() * 0.5
             )
         }
     }
@@ -289,7 +265,7 @@ fun BoxBeatVisualizer(
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(4.dp),  // gap-[4px]
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically  // items-center
     ) {
         bars.forEach { params ->
             BoxBeatBar(
@@ -301,13 +277,22 @@ fun BoxBeatVisualizer(
     }
 }
 
+// ─── Single Beat Bar ──────────────────────────────────────────────
+// HTML .beat-bar: width: 6px, height: 22px, background-color: #ffffff,
+//                 border-radius: 0px, transform: scaleY(0.1), transform-origin: center
+// HTML @keyframes box-beat:
+//   0%, 15%  → scaleY(0.1), opacity 0.15
+//   45%      → scaleY(1),   opacity 0.9
+//   55%      → scaleY(0.5), opacity 0.5
+//   85%, 100%→ scaleY(0.1), opacity 0.15
+// CSS easing: cubic-bezier(.2, .9, .3, 1)
+
 @Composable
-fun BoxBeatBar(
+private fun BoxBeatBar(
     isListening: Boolean,
     durationMs: Long,
     delayMs: Long
 ) {
-    // Animate scaleY when listening
     val infiniteTransition = rememberInfiniteTransition(label = "beat")
 
     val scale by if (isListening) {
@@ -317,37 +302,46 @@ fun BoxBeatBar(
             animationSpec = infiniteRepeatable(
                 animation = keyframes {
                     durationMillis = durationMs.toInt()
-                    0.1f at 0                           // 0%
-                    0.1f at (durationMs * 0.15).toInt()  // 15%
-                    1.0f at (durationMs * 0.45).toInt()  // 45%
-                    0.5f at (durationMs * 0.55).toInt()  // 55%
-                    0.1f at (durationMs * 0.85).toInt()  // 85%
-                    0.1f at durationMs.toInt()            // 100%
+                    // 0%  → scaleY(0.1), opacity 0.15
+                    0.1f at 0
+                    // 15% → scaleY(0.1), opacity 0.15
+                    0.1f at (durationMs * 0.15).toInt()
+                    // 45% → scaleY(1.0), opacity 0.9
+                    1.0f at (durationMs * 0.45).toInt()
+                    // 55% → scaleY(0.5), opacity 0.5
+                    0.5f at (durationMs * 0.55).toInt()
+                    // 85% → scaleY(0.1), opacity 0.15
+                    0.1f at (durationMs * 0.85).toInt()
+                    // 100% → scaleY(0.1), opacity 0.15
+                    0.1f at durationMs.toInt()
                 },
                 repeatMode = RepeatMode.Restart,
-                initialStartOffset = StartOffset(delayMs.toInt())
+                initialStartOffset = StartOffset(delayMs.toInt())  // animationDelay
             ),
             label = "beatScale"
         )
     } else {
-        remember { mutableStateOf(0.1f) }
+        remember { mutableStateOf(0.1f) }  // resting: scaleY(0.1)
     }
 
-    // Opacity mirrors the scale pattern from CSS
+    // Opacity: CSS maps 0.1→0.15, 1.0→0.9 linearly
     val barAlpha = if (isListening) {
         0.15f + (scale - 0.1f) * (0.9f - 0.15f) / (1.0f - 0.1f)
     } else {
-        0.15f
+        0.15f  // resting opacity
     }
 
+    // ─── HTML: .beat-bar { width: 6px; height: 22px; background-color: #ffffff;
+    //           border-radius: 0px; transform: scaleY(0.1); transform-origin: center; } ───
     Box(
         modifier = Modifier
-            .width(6.dp)   // width: 6px
-            .height(22.dp) // height: 22px
+            .width(6.dp)  // width: 6px
+            .height(22.dp)  // height: 22px
             .graphicsLayer {
-                scaleY = scale
-                alpha = barAlpha
+                scaleY = scale  // transform: scaleY
+                alpha = barAlpha  // opacity
+                // transform-origin: center (default in graphicsLayer)
             }
-            .background(Color.White)  // strictly white, sharp box type
+            .background(ColorWhite)  // background-color: #ffffff, border-radius: 0px (sharp)
     )
 }

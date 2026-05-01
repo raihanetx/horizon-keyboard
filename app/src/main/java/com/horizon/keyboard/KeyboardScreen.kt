@@ -108,8 +108,7 @@ fun HorizonKeyboardUI(
                     onTextRecognized = { recognized ->
                         text += "$recognized "
                         onVoiceText(recognized)
-                    },
-                    onClose = { currentTab = AppTab.Keyboard }
+                    }
                 )
             }
         }
