@@ -10,6 +10,8 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Base64
 import androidx.core.content.ContextCompat
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * Handles audio recording and transcription via multiple engines:
@@ -37,8 +39,10 @@ class VoiceTranscriptionEngine(
         private set
 
     private val audioHandler = Handler(Looper.getMainLooper())
+    private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val SAMPLE_RATE = 16000
     private val MAX_RECORD_SECONDS = 30
+    private val MAX_RETRIES = 2
 
     // ── Callbacks ────────────────────────────────────────────────
 
@@ -110,9 +114,9 @@ class VoiceTranscriptionEngine(
             val wavData = pcmToWav(trimmedData, SAMPLE_RATE, 1, 16)
             val langHint = if (currentVoiceLang == "bn-BD") "bn" else "en"
 
-            Thread {
+            executor.execute {
                 try {
-                    val result = callWhisperGroq(wavData, langHint)
+                    val result = callWhisperGroqWithRetry(wavData, langHint)
                     mainHandler.post {
                         if (result.isNotEmpty()) {
                             onTranscriptionResult?.invoke(result)
@@ -125,13 +129,13 @@ class VoiceTranscriptionEngine(
                     }
                 } catch (e: Exception) {
                     mainHandler.post {
-                        onStatusUpdate?.invoke("Error: ${e.message}", null)
+                        onStatusUpdate?.invoke("Transcription failed: ${e.message}", null)
                         if (!isUserStopped() && onShouldContinue()) {
                             mainHandler.postDelayed({ onRestartRecording?.invoke() }, 1000)
                         }
                     }
                 }
-            }.start()
+            }
 
         } catch (e: Exception) {
             onStatusUpdate?.invoke("Error: ${e.message}", null)
@@ -194,9 +198,9 @@ class VoiceTranscriptionEngine(
             val langName = if (currentVoiceLang == "bn-BD") "Bangla" else "English"
             val model = if (currentVoiceLang == "bn-BD") gemmaModelBn else gemmaModelEn
 
-            Thread {
+            executor.execute {
                 try {
-                    val result = callGemmaApi(base64Audio, langName, model)
+                    val result = callGemmaApiWithRetry(base64Audio, langName, model)
                     mainHandler.post {
                         if (result.isNotEmpty()) {
                             onTranscriptionResult?.invoke(result)
@@ -209,13 +213,13 @@ class VoiceTranscriptionEngine(
                     }
                 } catch (e: Exception) {
                     mainHandler.post {
-                        onStatusUpdate?.invoke("Error: ${e.message}", null)
+                        onStatusUpdate?.invoke("Transcription failed: ${e.message}", null)
                         if (!isUserStopped() && onShouldContinue()) {
                             mainHandler.postDelayed({ onRestartRecording?.invoke() }, 1000)
                         }
                     }
                 }
-            }.start()
+            }
 
         } catch (e: Exception) {
             onStatusUpdate?.invoke("Error: ${e.message}", null)
@@ -233,6 +237,50 @@ class VoiceTranscriptionEngine(
             audioRecord?.release()
         } catch (_: Exception) {}
         audioRecord = null
+    }
+
+    fun shutdown() {
+        executor.shutdownNow()
+        stopRecording()
+    }
+
+    // ── Private: Retry Wrappers ──────────────────────────────────
+
+    private fun callWhisperGroqWithRetry(wavData: ByteArray, language: String): String {
+        var lastException: Exception? = null
+        repeat(MAX_RETRIES + 1) { attempt ->
+            try {
+                val result = callWhisperGroq(wavData, language)
+                if (result.isNotEmpty()) return result
+                // Empty result on 200 means no speech — don't retry
+                return ""
+            } catch (e: java.net.SocketTimeoutException) {
+                lastException = e
+                if (attempt < MAX_RETRIES) Thread.sleep(1000L * (attempt + 1))
+            } catch (e: java.io.IOException) {
+                lastException = e
+                if (attempt < MAX_RETRIES) Thread.sleep(1000L * (attempt + 1))
+            }
+        }
+        throw lastException ?: Exception("Whisper transcription failed after ${MAX_RETRIES + 1} attempts")
+    }
+
+    private fun callGemmaApiWithRetry(base64Audio: String, language: String, model: String): String {
+        var lastException: Exception? = null
+        repeat(MAX_RETRIES + 1) { attempt ->
+            try {
+                val result = callGemmaApi(base64Audio, language, model)
+                if (result.isNotEmpty()) return result
+                return ""
+            } catch (e: java.net.SocketTimeoutException) {
+                lastException = e
+                if (attempt < MAX_RETRIES) Thread.sleep(1000L * (attempt + 1))
+            } catch (e: java.io.IOException) {
+                lastException = e
+                if (attempt < MAX_RETRIES) Thread.sleep(1000L * (attempt + 1))
+            }
+        }
+        throw lastException ?: Exception("Gemma transcription failed after ${MAX_RETRIES + 1} attempts")
     }
 
     // ── Private: API Calls ───────────────────────────────────────
@@ -277,9 +325,14 @@ class VoiceTranscriptionEngine(
         writer.close()
 
         val responseCode = connection.responseCode
-        return if (responseCode == 200) {
-            connection.inputStream.bufferedReader().readText().trim()
-        } else ""
+        if (responseCode == 200) {
+            return connection.inputStream.bufferedReader().readText().trim()
+        } else if (responseCode == 429) {
+            throw java.io.IOException("Rate limited (429) — try again later")
+        } else {
+            val errorBody = try { connection.errorStream?.bufferedReader()?.readText()?.take(200) } catch (_: Exception) { null }
+            throw java.io.IOException("Whisper API error $responseCode: ${errorBody ?: "unknown"}")
+        }
     }
 
     private fun callGemmaApi(base64Audio: String, language: String, model: String): String {
@@ -307,10 +360,13 @@ class VoiceTranscriptionEngine(
         connection.outputStream.use { os -> os.write(jsonBody.toByteArray()) }
 
         val responseCode = connection.responseCode
-        val response = if (responseCode == 200) {
-            connection.inputStream.bufferedReader().readText()
-        } else return ""
+        if (responseCode != 200) {
+            if (responseCode == 429) throw java.io.IOException("Rate limited (429) — try again later")
+            val errorBody = try { connection.errorStream?.bufferedReader()?.readText()?.take(200) } catch (_: Exception) { null }
+            throw java.io.IOException("Gemma API error $responseCode: ${errorBody ?: "unknown"}")
+        }
 
+        val response = connection.inputStream.bufferedReader().readText()
         val textStart = response.indexOf("\"text\":")
         if (textStart == -1) return ""
         val afterText = response.substring(textStart + 7).trim()

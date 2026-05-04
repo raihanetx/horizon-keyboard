@@ -288,6 +288,7 @@ class KeyboardSettingsManager(
         return container
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun settingsTextInput(hint: String, onTextChanged: (String) -> Unit): LinearLayout {
         val container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL

@@ -57,46 +57,32 @@ A minimal Android keyboard built with Jetpack Compose, featuring **dual-engine v
    - If language = English → sends to **Groq Whisper API**
    - If no API key → falls back to **Android built-in**
 
-## Security: NDK Key Storage
+## Security: Encrypted Key Storage
 
-API keys are stored as **XOR-obfuscated byte arrays in C++ native code** (.so binary). This is significantly harder to extract than SharedPreferences or decompiled Java.
-
-### How to embed keys:
-
-```bash
-# 1. Obfuscate your API key
-./obfuscate_key.sh "gsk_your_groq_api_key_here"
-
-# Output:
-# static const unsigned char KEY_OBFUSCATED[] = { 0x1D, 0x0A, ... };
-
-# 2. Paste the bytes into app/src/main/cpp/native_keys.cpp
-
-# 3. Rebuild the APK
-./gradlew assembleRelease
-```
+API keys are stored using **Android Keystore + EncryptedSharedPreferences** (AES-256-GCM). This is the standard Android approach for credential storage — keys are hardware-backed on supported devices (TEE/StrongBox) and encrypted at rest.
 
 ### Key priority:
-1. Native-embedded key (from .so binary)
-2. User-entered key (from Settings)
-3. Empty (engine disabled)
+1. User-entered key (from Settings, stored encrypted)
+2. Empty (engine disabled)
 
 ## Architecture
 
 ```
 com.horizon.keyboard/
-├── MainActivity.kt          # Setup screen + permission handling
-├── HorizonKeyboardService.kt # InputMethodService (IME lifecycle)
-├── KeyboardView.kt          # Main keyboard (View-based, production)
-├── VoiceLanguage.kt         # Supported languages enum
-├── NativeKeys.kt            # JNI bridge for secure key storage
-├── ComposeKeyboardView.kt   # Compose wrapper (alternative)
-├── KeyboardScreen.kt        # Compose keyboard UI
-└── VoiceTypingBar.kt        # Compose voice bar
-
-app/src/main/cpp/
-├── CMakeLists.txt           # NDK build config
-└── native_keys.cpp          # Secure API key storage (XOR obfuscated)
+├── MainActivity.kt              # Setup screen + permission handling
+├── HorizonKeyboardService.kt    # InputMethodService (IME lifecycle)
+├── KeyboardView.kt              # Core keyboard layout + key handling
+├── KeyboardVoiceManager.kt      # SpeechRecognizer + voice engine delegation
+├── KeyboardSettingsManager.kt   # Settings panel + persistence
+├── KeyboardClipboardManager.kt  # Clipboard panel + history
+├── KeyboardTheme.kt             # Colors, drawables, dimension helpers
+├── VoiceTranscriptionEngine.kt  # Audio recording + Whisper/Gemma API calls
+├── VoiceCommandProcessor.kt     # Voice input → keyboard actions
+├── VoiceLanguage.kt             # Supported languages enum
+├── VoiceTypingBar.kt            # Compose voice bar
+├── KeyboardScreen.kt            # Compose keyboard UI
+├── SecureKeyStore.kt            # Android Keystore + EncryptedSharedPreferences
+└── IconView.kt                  # Custom icon views
 ```
 
 ## Build
@@ -109,10 +95,6 @@ cd horizon-keyboard
 # Set up Android SDK (needs SDK 34 + build-tools 34.0.0)
 export ANDROID_HOME=/path/to/android-sdk
 echo "sdk.dir=$ANDROID_HOME" > local.properties
-
-# (Optional) Embed API keys securely
-./obfuscate_key.sh "your_groq_key"  # paste output into native_keys.cpp
-./obfuscate_key.sh "your_gemma_key" # paste output into native_keys.cpp
 
 # Build debug APK
 ./gradlew assembleDebug
