@@ -564,15 +564,15 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                         voiceStatusText?.text = "\"$rawText\""
                         processed.forEach { action ->
                             when (action) {
-                                is VoiceAction.Text -> onKeyPress?.invoke(action.value)
-                                is VoiceAction.Backspace -> onBackspace?.invoke()
-                                is VoiceAction.Enter -> onEnter?.invoke()
-                                is VoiceAction.Space -> onSpace?.invoke()
-                                is VoiceAction.Escape -> onKeyPress?.invoke("\u001B")
-                                is VoiceAction.ArrowUp -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_UP)
-                                is VoiceAction.ArrowDown -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
-                                is VoiceAction.ArrowLeft -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
-                                is VoiceAction.ArrowRight -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+                                is VoiceCommandProcessor.Action.Text -> onKeyPress?.invoke(action.value)
+                                is VoiceCommandProcessor.Action.Backspace -> onBackspace?.invoke()
+                                is VoiceCommandProcessor.Action.Enter -> onEnter?.invoke()
+                                is VoiceCommandProcessor.Action.Space -> onSpace?.invoke()
+                                is VoiceCommandProcessor.Action.Escape -> onKeyPress?.invoke("\u001B")
+                                is VoiceCommandProcessor.Action.ArrowUp -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                                is VoiceCommandProcessor.Action.ArrowDown -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                                is VoiceCommandProcessor.Action.ArrowLeft -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
+                                is VoiceCommandProcessor.Action.ArrowRight -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
                             }
                         }
                     } else {
@@ -627,140 +627,9 @@ class KeyboardView(context: Context) : LinearLayout(context) {
 
     // ─── Voice Command Processing ────────────────────────────────
 
-    private sealed class VoiceAction {
-        data class Text(val value: String) : VoiceAction()
-        object Backspace : VoiceAction()
-        object Enter : VoiceAction()
-        object Space : VoiceAction()
-        object Escape : VoiceAction()
-        object ArrowUp : VoiceAction()
-        object ArrowDown : VoiceAction()
-        object ArrowLeft : VoiceAction()
-        object ArrowRight : VoiceAction()
-    }
+    private fun processVoiceInput(raw: String): List<VoiceCommandProcessor.Action> =
+        VoiceCommandProcessor.process(raw)
 
-    private fun processVoiceInput(raw: String): List<VoiceAction> {
-        val actions = mutableListOf<VoiceAction>()
-        val normalized = raw.trim().lowercase()
-            .replace(Regex("/\\s+"), "/")
-            .replace(Regex("\\s+/\\s*"), "/")
-            .replace("slush", "slash")
-            .replace("slosh", "slash")
-            .replace("slash slash", "slash")
-        val words = normalized.split("\\s+".toRegex())
-        var i = 0
-        val buffer = StringBuilder()
-
-        fun flushBuffer() {
-            if (buffer.isNotEmpty()) {
-                actions.add(VoiceAction.Text(buffer.toString()))
-                buffer.clear()
-            }
-        }
-
-        while (i < words.size) {
-            val word = words[i]
-
-            when {
-                word == "command" || word == "cmd" -> {
-                    i++
-                    if (i < words.size) {
-                        val cmd = words[i]
-                        when {
-                            cmd == "down" || cmd == "down arrow" -> { flushBuffer(); actions.add(VoiceAction.ArrowDown); i++ }
-                            cmd == "up" || cmd == "up arrow" -> { flushBuffer(); actions.add(VoiceAction.ArrowUp); i++ }
-                            cmd == "left" || cmd == "left arrow" -> { flushBuffer(); actions.add(VoiceAction.ArrowLeft); i++ }
-                            cmd == "right" || cmd == "right arrow" -> { flushBuffer(); actions.add(VoiceAction.ArrowRight); i++ }
-                            cmd == "exit" || cmd == "escape" || cmd == "esc" || cmd == "skip" -> { flushBuffer(); actions.add(VoiceAction.Escape); i++ }
-                            cmd == "enter" || cmd == "return" || cmd == "submit" -> { flushBuffer(); actions.add(VoiceAction.Enter); i++ }
-                            cmd == "backspace" || cmd == "delete" -> { flushBuffer(); actions.add(VoiceAction.Backspace); i++ }
-                            cmd == "space" -> { flushBuffer(); actions.add(VoiceAction.Space); i++ }
-                            else -> {
-                                flushBuffer()
-                                buffer.append("/")
-                                buffer.append(cmd)
-                                i++
-                                while (i < words.size) {
-                                    val next = words[i]
-                                    if (next in VOICE_COMMAND_KEYWORDS) break
-                                    buffer.append(next)
-                                    i++
-                                }
-                            }
-                        }
-                    } else {
-                        if (buffer.isNotEmpty()) buffer.append(" ")
-                        buffer.append("command")
-                    }
-                }
-                word == "down" && i + 1 < words.size && words[i + 1] == "arrow" -> { flushBuffer(); actions.add(VoiceAction.ArrowDown); i += 2 }
-                word == "up" && i + 1 < words.size && words[i + 1] == "arrow" -> { flushBuffer(); actions.add(VoiceAction.ArrowUp); i += 2 }
-                word == "left" && i + 1 < words.size && words[i + 1] == "arrow" -> { flushBuffer(); actions.add(VoiceAction.ArrowLeft); i += 2 }
-                word == "right" && i + 1 < words.size && words[i + 1] == "arrow" -> { flushBuffer(); actions.add(VoiceAction.ArrowRight); i += 2 }
-                word == "slash" || word == "forward slash" -> {
-                    flushBuffer()
-                    buffer.append("/")
-                    i++
-                    while (i < words.size) {
-                        val next = words[i]
-                        if (next in VOICE_COMMAND_KEYWORDS) break
-                        buffer.append(next)
-                        i++
-                    }
-                }
-                word.startsWith("/") -> { flushBuffer(); buffer.append(word); i++ }
-                word == "skip" || word == "escape" || word == "esc" -> { flushBuffer(); actions.add(VoiceAction.Escape); i++ }
-                word == "enter" || word == "return" || word == "submit" -> { flushBuffer(); actions.add(VoiceAction.Enter); i++ }
-                word == "space" || word == "blank" -> { flushBuffer(); actions.add(VoiceAction.Space); i++ }
-                word == "backspace" || word == "back space" || word == "delete" -> { flushBuffer(); actions.add(VoiceAction.Backspace); i++ }
-                word == "dot" || word == "period" || word == "full stop" -> { buffer.append("."); i++ }
-                word == "comma" -> { buffer.append(","); i++ }
-                word == "at the rate" || word == "at sign" || word == "at" -> { buffer.append("@"); i++ }
-                word == "hash" || word == "pound" || word == "hashtag" -> { buffer.append("#"); i++ }
-                word == "underscore" -> { buffer.append("_"); i++ }
-                word == "hyphen" || word == "dash" || word == "minus" -> { buffer.append("-"); i++ }
-                word == "plus" -> { buffer.append("+"); i++ }
-                word == "equals" || word == "equal" -> { buffer.append("="); i++ }
-                word == "question mark" -> { buffer.append("?"); i++ }
-                word == "exclamation" || word == "exclamation mark" -> { buffer.append("!"); i++ }
-                word == "open bracket" || word == "open brace" -> { buffer.append("("); i++ }
-                word == "close bracket" || word == "close brace" -> { buffer.append(")"); i++ }
-                word == "colon" -> { buffer.append(":"); i++ }
-                word == "semicolon" -> { buffer.append(";"); i++ }
-                word == "quotes" || word == "double quotes" -> { buffer.append("\""); i++ }
-                word == "single quote" || word == "apostrophe" -> { buffer.append("'"); i++ }
-                word == "backslash" -> { buffer.append("\\"); i++ }
-                word == "pipe" || word == "vertical bar" -> { buffer.append("|"); i++ }
-                word == "tilde" -> { buffer.append("~"); i++ }
-                word == "star" || word == "asterisk" -> { buffer.append("*"); i++ }
-                word == "ampersand" || word == "and sign" -> { buffer.append("&"); i++ }
-                word == "percent" -> { buffer.append("%"); i++ }
-                word == "dollar" -> { buffer.append("$"); i++ }
-                else -> {
-                    if (buffer.isNotEmpty() && !buffer.endsWith("/")) buffer.append(" ")
-                    buffer.append(word)
-                    i++
-                }
-            }
-        }
-
-        flushBuffer()
-        return actions
-    }
-
-    companion object {
-        private val VOICE_COMMAND_KEYWORDS = setOf(
-            "command", "cmd", "slash", "forward slash", "skip", "escape", "esc",
-            "enter", "return", "submit", "space", "blank", "backspace", "back", "delete",
-            "dot", "period", "full stop", "comma", "at the rate", "at sign", "at",
-            "hash", "pound", "hashtag", "underscore", "hyphen", "dash", "minus",
-            "plus", "equals", "equal", "question mark", "exclamation", "exclamation mark",
-            "open bracket", "open brace", "close bracket", "close brace", "colon", "semicolon",
-            "quotes", "double quotes", "single quote", "apostrophe", "backslash",
-            "pipe", "vertical bar", "tilde", "star", "asterisk", "ampersand", "and sign",
-            "percent", "dollar", "up", "down", "left", "right", "arrow"
-        )
-    }
 
     private fun toggleVoiceRecognition() {
         if (isListening) {
@@ -988,15 +857,15 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                             val processed = processVoiceInput(result)
                             processed.forEach { action ->
                                 when (action) {
-                                    is VoiceAction.Text -> onKeyPress?.invoke(action.value)
-                                    is VoiceAction.Backspace -> onBackspace?.invoke()
-                                    is VoiceAction.Enter -> onEnter?.invoke()
-                                    is VoiceAction.Space -> onSpace?.invoke()
-                                    is VoiceAction.Escape -> onKeyPress?.invoke("\u001B")
-                                    is VoiceAction.ArrowUp -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_UP)
-                                    is VoiceAction.ArrowDown -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
-                                    is VoiceAction.ArrowLeft -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
-                                    is VoiceAction.ArrowRight -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+                                    is VoiceCommandProcessor.Action.Text -> onKeyPress?.invoke(action.value)
+                                    is VoiceCommandProcessor.Action.Backspace -> onBackspace?.invoke()
+                                    is VoiceCommandProcessor.Action.Enter -> onEnter?.invoke()
+                                    is VoiceCommandProcessor.Action.Space -> onSpace?.invoke()
+                                    is VoiceCommandProcessor.Action.Escape -> onKeyPress?.invoke("\u001B")
+                                    is VoiceCommandProcessor.Action.ArrowUp -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                                    is VoiceCommandProcessor.Action.ArrowDown -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                                    is VoiceCommandProcessor.Action.ArrowLeft -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
+                                    is VoiceCommandProcessor.Action.ArrowRight -> onArrowKey?.invoke(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
                                 }
                             }
                             if (!userStoppedListening) {
