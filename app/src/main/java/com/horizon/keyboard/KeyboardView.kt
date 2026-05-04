@@ -622,11 +622,11 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     private fun toggleVoiceRecognition() {
         if (isListening) {
             userStoppedListening = true
-            if (voiceEngine == VoiceEngineType.GEMMA_API && voiceEngine.isRecordingAudio) {
+            if (voiceEngineType == VoiceEngineType.GEMMA_API && voiceEngine.isRecordingAudio) {
                 stopGemmaRecordingAndTranscribe()
-            } else if (voiceEngine == VoiceEngineType.WHISPER_GROQ && voiceEngine.isRecordingAudio) {
+            } else if (voiceEngineType == VoiceEngineType.WHISPER_GROQ && voiceEngine.isRecordingAudio) {
                 stopWhisperRecordingAndTranscribe()
-            } else if (voiceEngine == VoiceEngineType.AUTO && voiceEngine.isRecordingAudio) {
+            } else if (voiceEngineType == VoiceEngineType.AUTO && voiceEngine.isRecordingAudio) {
                 // Auto mode: use the appropriate stop function based on current language
                 if (currentVoiceLang == VoiceLanguage.BANGLA.gemmaCode && voiceEngine.gemmaApiKey.isNotEmpty()) {
                     stopGemmaRecordingAndTranscribe()
@@ -641,7 +641,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
             hideVoiceBar()
         } else {
             userStoppedListening = false
-            when (voiceEngine) {
+            when (voiceEngineType) {
                 VoiceEngineType.GEMMA_API -> {
                     if (voiceEngine.gemmaApiKey.isNotEmpty()) startGemmaRecording()
                 }
@@ -719,7 +719,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         pendingHideRunnable?.let { removeCallbacks(it) }
         pendingHideRunnable = null
         destroyRecognizer()
-        stopAudioRecording()
+        voiceEngine.stopRecording()
     }
 
     // ─── Settings Management ─────────────────────────────────────
@@ -838,13 +838,13 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         }
 
         when {
-            voiceEngine == VoiceEngineType.GEMMA_API && voiceEngine.gemmaApiKey.isNotEmpty() -> {
+            voiceEngineType == VoiceEngineType.GEMMA_API && voiceEngine.gemmaApiKey.isNotEmpty() -> {
                 postDelayed({ startGemmaRecording() }, FADE_DURATION + 100)
             }
-            voiceEngine == VoiceEngineType.WHISPER_GROQ && voiceEngine.groqApiKey.isNotEmpty() -> {
+            voiceEngineType == VoiceEngineType.WHISPER_GROQ && voiceEngine.groqApiKey.isNotEmpty() -> {
                 postDelayed({ startWhisperRecording() }, FADE_DURATION + 100)
             }
-            voiceEngine == VoiceEngineType.AUTO -> {
+            voiceEngineType == VoiceEngineType.AUTO -> {
                 // Auto: Indian language → Gemma, English → Whisper
                 postDelayed({
                     if (currentVoiceLang == VoiceLanguage.BANGLA.gemmaCode && voiceEngine.gemmaApiKey.isNotEmpty()) {
@@ -1070,12 +1070,12 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                 "android" to "Android Built-in (Offline)"
             )
             engines.forEach { (key, label) ->
-                val isSelected = (key == "auto" && voiceEngine == VoiceEngineType.AUTO) ||
-                    (key == "whisper_groq" && voiceEngine == VoiceEngineType.WHISPER_GROQ) ||
-                    (key == "gemma" && voiceEngine == VoiceEngineType.GEMMA_API) ||
-                    (key == "android" && voiceEngine == VoiceEngineType.ANDROID_BUILTIN)
+                val isSelected = (key == "auto" && voiceEngineType == VoiceEngineType.AUTO) ||
+                    (key == "whisper_groq" && voiceEngineType == VoiceEngineType.WHISPER_GROQ) ||
+                    (key == "gemma" && voiceEngineType == VoiceEngineType.GEMMA_API) ||
+                    (key == "android" && voiceEngineType == VoiceEngineType.ANDROID_BUILTIN)
                 panel.addView(createSettingsOption(label, isSelected) {
-                    voiceEngine = when (key) {
+                    voiceEngineType = when (key) {
                         "auto" -> VoiceEngineType.AUTO
                         "whisper_groq" -> VoiceEngineType.WHISPER_GROQ
                         "gemma" -> VoiceEngineType.GEMMA_API
@@ -1101,7 +1101,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
             }
 
             // Groq API Key (if Whisper or Auto selected)
-            if (voiceEngine == VoiceEngineType.WHISPER_GROQ || voiceEngine == VoiceEngineType.AUTO) {
+            if (voiceEngineType == VoiceEngineType.WHISPER_GROQ || voiceEngineType == VoiceEngineType.AUTO) {
                 panel.addView(createSettingsSectionHeader("GROQ API KEY (WHISPER)"))
                 val maskedGroq = maskKey(voiceEngine.groqApiKey)
                 panel.addView(createSettingsTextInput(maskedGroq.ifEmpty { "Enter Groq API key..." }) { newKey ->
@@ -1117,7 +1117,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
             }
 
             // Gemma API Key (if Gemma or Auto selected)
-            if (voiceEngine == VoiceEngineType.GEMMA_API || voiceEngine == VoiceEngineType.AUTO) {
+            if (voiceEngineType == VoiceEngineType.GEMMA_API || voiceEngineType == VoiceEngineType.AUTO) {
                 panel.addView(createSettingsSectionHeader("GOOGLE AI STUDIO API KEY (GEMMA)"))
                 val maskedGemma = maskKey(voiceEngine.gemmaApiKey)
                 panel.addView(createSettingsTextInput(maskedGemma.ifEmpty { "Enter API key..." }) { newKey ->
@@ -1132,17 +1132,17 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                 })
             }
 
-            if (voiceEngine == VoiceEngineType.GEMMA_API || voiceEngine == VoiceEngineType.AUTO) {
+            if (voiceEngineType == VoiceEngineType.GEMMA_API || voiceEngineType == VoiceEngineType.AUTO) {
                 panel.addView(createSettingsSectionHeader("GEMMA MODEL"))
                 val models = listOf(
                     "gemma-4-e4b-it" to "Gemma 4 E4B (4B — Better)",
                     "gemma-4-e2b-it" to "Gemma 4 E2B (2B — Faster)"
                 )
                 models.forEach { (model, label) ->
-                    val isSelected = (currentVoiceLang == "bn-BD" && gemmaModelBn == model) ||
-                        (currentVoiceLang == "en-US" && gemmaModelEn == model)
+                    val isSelected = (currentVoiceLang == "bn-BD" && voiceEngine.gemmaModelBn == model) ||
+                        (currentVoiceLang == "en-US" && voiceEngine.gemmaModelEn == model)
                     panel.addView(createSettingsOption(label, isSelected) {
-                        if (currentVoiceLang == "bn-BD") gemmaModelBn = model else gemmaModelEn = model
+                        if (currentVoiceLang == "bn-BD") voiceEngine.gemmaModelBn = model else voiceEngine.gemmaModelEn = model
                         saveSettings()
                         refreshSettingsPanel()
                     })
