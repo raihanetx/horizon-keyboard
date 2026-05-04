@@ -5,6 +5,13 @@ build/
 .gradle/
 local.properties
 
+# APKs (use GitHub Releases for distribution)
+*.apk
+
+# Loose files not part of the project
+ui
+voice typing ui
+
 # IDE
 .idea/
 *.iml
@@ -12,6 +19,3 @@ local.properties
 # OS
 .DS_Store
 Thumbs.db
-
-Horizon-v1.0-debug.apk
-local.properties
