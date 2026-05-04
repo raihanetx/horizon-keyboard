@@ -1,0 +1,20 @@
+package com.horizon.keyboard
+
+/**
+ * Supported voice languages: English and Bangla only.
+ * Each language has codes for Whisper (Groq) and Gemma APIs.
+ */
+enum class VoiceLanguage(
+    val displayName: String,
+    val whisperCode: String,
+    val gemmaCode: String
+) {
+    ENGLISH("English", "en", "en-US"),
+    BANGLA("বাংলা (Bangla)", "bn", "bn-BD");
+
+    companion object {
+        fun fromName(name: String): VoiceLanguage {
+            return entries.find { it.name == name } ?: ENGLISH
+        }
+    }
+}

@@ -1,78 +1,61 @@
 package com.horizon.keyboard
 
 import android.inputmethodservice.InputMethodService
+import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import androidx.compose.ui.platform.ComposeView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
-import androidx.lifecycle.setViewTreeLifecycleOwner
-import androidx.savedstate.SavedStateRegistry
-import androidx.savedstate.SavedStateRegistryController
-import androidx.savedstate.SavedStateRegistryOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import android.view.inputmethod.ExtractedTextRequest
 
-class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateRegistryOwner {
+class HorizonKeyboardService : InputMethodService() {
 
-    private val lifecycleRegistry = LifecycleRegistry(this)
-    private val savedStateRegistryController = SavedStateRegistryController.create(this)
-
-    override val lifecycle: Lifecycle get() = lifecycleRegistry
-    override val savedStateRegistry: SavedStateRegistry
-        get() = savedStateRegistryController.savedStateRegistry
-
-    override fun onCreate() {
-        super.onCreate()
-        savedStateRegistryController.performRestore(null)
-        lifecycleRegistry.currentState = Lifecycle.State.CREATED
-    }
+    private var keyboardView: KeyboardView? = null
 
     override fun onCreateInputView(): View {
-        lifecycleRegistry.currentState = Lifecycle.State.STARTED
-
-        // CRITICAL FIX: Set lifecycle owner on the IME window's decor view.
-        // ComposeView's WindowRecomposer walks up the view tree to find a
-        // LifecycleOwner. If it hits the window root without finding one, it crashes.
-        window?.window?.decorView?.let { decorView ->
-            decorView.setViewTreeLifecycleOwner(this)
-            decorView.setViewTreeSavedStateRegistryOwner(this)
+        return KeyboardView(this).apply {
+            keyboardView = this
+            onKeyPress = { char -> commitText(char) }
+            onBackspace = { handleBackspace() }
+            onEnter = { handleEnter() }
+            onSpace = { commitText(" ") }
+            onPaste = { text -> commitText(text) }
+            onArrowKey = { keyCode -> handleArrowKey(keyCode) }
         }
+    }
 
-        return ComposeView(this).apply {
-            setContent {
-                HorizonKeyboardUI(
-                    onKeyPress = { char -> handleCharInput(char) },
-                    onBackspace = { handleBackspace() },
-                    onEnter = { handleEnter() },
-                    onShift = { handleShift() },
-                    onSpace = { handleSpace() },
-                    onSymbol = { handleSymbolToggle() }
-                )
-            }
-        }
+    override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
+        super.onStartInput(attribute, restarting)
+        // Update enter key appearance based on the editor's IME options
+        keyboardView?.updateImeOptions(attribute?.imeOptions ?: EditorInfo.IME_ACTION_UNSPECIFIED)
+    }
+
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+        // Also update when the input view becomes visible
+        keyboardView?.updateImeOptions(info?.imeOptions ?: EditorInfo.IME_ACTION_UNSPECIFIED)
     }
 
     override fun onDestroy() {
-        lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+        keyboardView?.cleanup()
+        keyboardView = null
         super.onDestroy()
     }
 
-    private var isShifted = false
-    private var isSymbolMode = false
-
-    private fun handleCharInput(char: String) {
+    private fun commitText(text: String) {
         val ic = currentInputConnection ?: return
-        val output = if (isShifted) char.uppercase() else char
-        ic.commitText(output, 1)
-        if (isShifted) {
-            isShifted = false
-        }
+        ic.commitText(text, 1)
     }
 
     private fun handleBackspace() {
         val ic = currentInputConnection ?: return
-        ic.deleteSurroundingText(1, 0)
+        val extracted = ic.getExtractedText(ExtractedTextRequest(), 0)
+        if (extracted != null && extracted.selectionStart != extracted.selectionEnd) {
+            val start = minOf(extracted.selectionStart, extracted.selectionEnd)
+            val end = maxOf(extracted.selectionStart, extracted.selectionEnd)
+            ic.setSelection(start, end)
+            ic.commitText("", 1)
+        } else {
+            ic.deleteSurroundingText(1, 0)
+        }
     }
 
     private fun handleEnter() {
@@ -86,16 +69,9 @@ class HorizonKeyboardService : InputMethodService(), LifecycleOwner, SavedStateR
         }
     }
 
-    private fun handleShift() {
-        isShifted = !isShifted
-    }
-
-    private fun handleSpace() {
+    private fun handleArrowKey(keyCode: Int) {
         val ic = currentInputConnection ?: return
-        ic.commitText(" ", 1)
-    }
-
-    private fun handleSymbolToggle() {
-        isSymbolMode = !isSymbolMode
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
     }
 }

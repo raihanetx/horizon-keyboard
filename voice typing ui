@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MiMo Pro Keyboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#1c1c1e;--kb:#2c2c2e;--t:#fff;--tm:#a0a0a8;--tx:#636366;--a:#0a84ff;--kh:46px;--g:6px;--r:8px;--ma-h:220px;--sbh:40px}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:#000}
+body{font-family:Inter,-apple-system,sans-serif;display:flex;flex-direction:column;user-select:none}
+
+/* Output Display Area */
+.da{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:20px 18px;min-height:0;padding-bottom:140px}
+.dl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx);margin-bottom:8px}
+.dt{font-family:'DM Mono',monospace;font-size:18px;line-height:1.4;color:var(--t);word-break:break-all;min-height:28px;overflow-y:auto;max-height:160px}
+.cur{display:inline-block;width:2px;height:20px;background:var(--a);vertical-align:text-bottom;animation:bl 1s step-end infinite}
+@keyframes bl{50%{opacity:0}}
+
+/* Header Toolbar - Dynamic Position */
+.tb{background:#2c2c2e;display:flex;align-items:center;padding:0 6px;height:48px;border-top:1px solid #3a3a3c;position:fixed;bottom:var(--ma-h);width:100%;z-index:100;transition:bottom 0.15s ease-out}
+.tb.with-sb{bottom:calc(var(--ma-h) + var(--sbh))}
+
+.tb-btn{flex:1;height:38px;background:none;border:none;display:flex;align-items:center;justify-content:center;color:var(--tm);transition:color 0.2s}
+.tb-btn svg{width:20px;height:20px;fill:currentColor}
+.tb-btn.act{color:var(--a)}
+
+/* NEW Smart Animation Voice Header Overlay */
+.v-overlay{
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:#1c1c1e; display:flex; align-items:center; justify-content:space-between;
+    padding:0 15px; z-index:110; border-top:1px solid rgba(255,255,255,0.1);
+    
+    /* Smart Reveal Animation Base Setup */
+    opacity:0; visibility:hidden; transform:translateY(8px);
+    transition: all 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.v-overlay.vis{
+    opacity:1; visibility:visible; transform:translateY(0);
+}
+
+/* Micro Button Styles (From Horizon) */
+.v-btn-lang {
+    height:24px; padding:0 12px; border:0.5px solid rgba(255,255,255,0.2);
+    border-radius:99px; background:transparent; color:rgba(255,255,255,0.4);
+    font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:-0.5px;
+    cursor:pointer; transition:all 0.2s; font-family:'Inter', sans-serif;
+}
+.v-btn-lang:active { transform:scale(0.95); }
+
+.v-btn-act {
+    height:24px; min-width:65px; padding:0 12px; border:0.5px solid rgba(255,255,255,0.8);
+    border-radius:99px; background:transparent; color:#fff;
+    font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:1px;
+    cursor:pointer; transition:all 0.2s; font-family:'Inter', sans-serif;
+}
+.v-btn-act:active { transform:scale(0.95); }
+
+/* Center Text (Replaces the Beat Bars) */
+.v-status-text {
+    flex:1; text-align:center; color:#fff; font-size:10px; font-weight:600;
+    letter-spacing:1px; text-transform:uppercase; opacity:0.9;
+}
+.v-status-text.pulse {
+    animation: breathing 1.5s infinite alternate ease-in-out;
+}
+@keyframes breathing {
+    0% { opacity:0.3; transform:scale(0.98); }
+    100% { opacity:1; transform:scale(1); }
+}
+
+/* Suggestion Bar */
+.sb{height:var(--sbh);background:var(--bg);border-top:1px solid #2c2c2e;display:none;align-items:center;padding:0 10px;position:fixed;bottom:var(--ma-h);width:100%;z-index:90;animation:slideUp 0.2s ease-out}
+.sb.vis{display:flex}
+@keyframes slideUp{from{height:0;opacity:0}to{height:var(--sbh);opacity:1}}
+
+.sug-view{display:flex;width:100%;height:100%;align-items:center;justify-content:center}
+.sw{flex:1;background:none;border:none;color:var(--tm);font-size:13px;font-weight:600;height:24px;border-right:1px solid #3a3a3c}
+.sw:last-child{border-right:none}
+.sw.p{color:var(--a)}
+
+/* Main UI Attached to Bottom */
+.ma{background:var(--bg);height:var(--ma-h);padding:8px 6px 0;position:fixed;bottom:0;width:100%;z-index:80;display:flex;flex-direction:column}
+
+/* Panel Sections */
+.pn{display:none;flex-direction:column;height:100%;width:100%;padding:12px;overflow-y:auto;background:var(--bg)}
+.pn.vis{display:flex}
+.tbx{background:#2c2c2e;border-radius:10px;padding:12px;border:1px solid #3a3a3c;margin-bottom:8px}
+.tbl{font-size:9px;color:var(--tx);text-transform:uppercase;font-weight:800;margin-bottom:4px}
+.tbt{font-size:14px;color:#fff;font-family:'DM Mono'}
+
+/* Keyboard Layers */
+.ly{display:none;flex-direction:column;gap:7px;height:100%}
+.ly.vis{display:flex}
+.kr{display:flex;gap:6px;justify-content:center}
+.k{flex:1;height:var(--kh);background:linear-gradient(to bottom, #3a3a3c, #2c2c2e);border:none;border-radius:var(--r);color:var(--t);font-size:18px;font-weight:500;box-shadow: 0 2px 0 #151517}
+.k:active{background:#48484a;transform:translateY(1px);box-shadow:none}
+.ks,.kd{flex:1.4;background:#48484a}
+.ks.on{background:var(--a)}
+.ke{flex:2;background:var(--a);font-size:12px;font-weight:bold}
+.ksp{flex:5;font-size:11px;letter-spacing:2px}
+</style>
+</head>
+<body>
+
+<div class="da">
+    <div class="dl" id="h-status">MiMo Pro Console</div>
+    <div class="dt" id="display"><span class="cur"></span></div>
+</div>
+
+<div class="tb" id="tb-header">
+    
+    <!-- NEW Horizon Monochrome Voice UI overlay -->
+    <div class="v-overlay vis" id="v-overlay">
+        <button id="langBtn" class="v-btn-lang" onclick="toggleLang()">ENGLISH</button>
+        <div id="v-status" class="v-status-text pulse">LISTENING...</div>
+        <button id="actionBtn" class="v-btn-act" onclick="stopVoice()">STOP</button>
+    </div>
+    
+    <!-- Standard Header Icons -->
+    <button class="tb-btn" data-t="keyboard"><svg viewBox="0 0 24 24"><path d="M20 5H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/></svg></button>
+    <button class="tb-btn" data-t="translate"><svg viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0014.07 6H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg></button>
+    <button class="tb-btn" data-t="clipboard"><svg viewBox="0 0 24 24"><path d="M19 2h-4.18C14.4.84 13.3 0 12 0S9.6.84 9.18 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z"/></svg></button>
+    
+    <!-- Voice Trigger Button -->
+    <button class="tb-btn act" data-t="voice"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15a.998.998 0 00-.98-.85c-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg></button>
+    
+    <button class="tb-btn" data-t="terminal"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zm-2-1h-6v-2h6v2zM7.5 17l-1.41-1.41L8.67 13l-2.59-2.59L7.5 9l4 4-4 4z"/></svg></button>
+    <button class="tb-btn" data-t="settings"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24-1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
+</div>
+
+<div class="sb" id="sb">
+    <div class="sug-view" id="sug-view"></div>
+</div>
+
+<div class="ma">
+    <div class="pn" id="p-translate">
+        <div class="tbx"><div class="tbl">Translation Source</div><div class="tbt" id="t-src">...</div></div>
+        <div class="tbx" style="border-color:var(--a)"><div class="tbl" style="color:var(--a)">Result</div><div class="tbt">Ready.</div></div>
+    </div>
+    <div class="pn" id="p-clipboard">
+        <div class="tbx"><div class="tbl">Clips</div><div class="tbt">Hello, World!</div></div>
+    </div>
+    <div class="pn" id="p-terminal">
+        <div class="to">MiMo Dev Terminal Ready...</div>
+        <div class="tir"><span style="color:#32d74b; margin-right:8px">$</span><input class="tii" id="tin" placeholder="Command..."></div>
+    </div>
+    <div class="pn" id="p-settings">
+        <div class="tbx"><div class="tbl">System</div><div class="tbt">Haptics: Active</div></div>
+    </div>
+
+    <!-- Keyboard Layout (Shows behind default Voice tab) -->
+    <div class="ly vis" id="la">
+        <div class="kr"><button class="k">q</button><button class="k">w</button><button class="k">e</button><button class="k">r</button><button class="k">t</button><button class="k">y</button><button class="k">u</button><button class="k">i</button><button class="k">o</button><button class="k">p</button></div>
+        <div class="kr"><button class="k">a</button><button class="k">s</button><button class="k">d</button><button class="k">f</button><button class="k">g</button><button class="k">h</button><button class="k">j</button><button class="k">k</button><button class="k">l</button></div>
+        <div class="kr"><button class="k ks" id="shift-btn">⇧</button><button class="k">z</button><button class="k">x</button><button class="k">c</button><button class="k">v</button><button class="k">b</button><button class="k">n</button><button class="k">m</button><button class="k kd">⌫</button></div>
+        <div class="kr"><button class="k ks">123</button><button class="k">@</button><button class="k ksp">SPACE</button><button class="k">.</button><button class="k ke">DONE</button></div>
+    </div>
+</div>
+
+<script>
+const State = {
+    val: '',
+    shift: false,
+    tab: 'voice',
+    lang: 'en'
+};
+
+function handlePress(k) {
+    if(navigator.vibrate) navigator.vibrate(12);
+    if(k === '⇧') {
+        State.shift = !State.shift;
+        document.getElementById('shift-btn').classList.toggle('on', State.shift);
+        return;
+    }
+    if(k === '⌫') State.val = State.val.slice(0, -1);
+    else if(k === 'SPACE') State.val += ' ';
+    else if(k === 'DONE') switchPanel('keyboard');
+    else {
+        State.val += State.shift ? k.toUpperCase() : k.toLowerCase();
+        if(State.shift) { State.shift = false; document.getElementById('shift-btn').classList.remove('on'); }
+    }
+    render();
+    updateSug();
+}
+
+function render() {
+    document.getElementById('display').innerHTML = State.val.replace(/\n/g, '<br>') + '<span class="cur"></span>';
+    const ts = document.getElementById('t-src');
+    if(ts) ts.textContent = State.val || '...';
+}
+
+function updateSug() {
+    const sb = document.getElementById('sb');
+    const tb = document.getElementById('tb-header');
+    const view = document.getElementById('sug-view');
+    
+    // Suggestion Bar shows only if there is text AND we are on Keyboard Panel
+    if(State.val.length > 0 && State.tab === 'keyboard') {
+        sb.classList.add('vis');
+        tb.classList.add('with-sb');
+        view.innerHTML = `
+            <button class="sw" onclick="ins('Hello')">Hello</button>
+            <button class="sw" onclick="ins('The')">The</button>
+            <button class="sw" onclick="ins('Thanks')">Thanks</button>
+        `;
+    } else {
+        sb.classList.remove('vis');
+        tb.classList.remove('with-sb');
+    }
+}
+
+function ins(w) { State.val += w + ' '; render(); updateSug(); }
+
+/* Horizon Voice Specific Functions */
+function toggleLang() {
+    State.lang = (State.lang === 'en') ? 'bn' : 'en';
+    document.getElementById('langBtn').textContent = (State.lang === 'en') ? 'ENGLISH' : 'BANGLA';
+}
+
+function stopVoice() {
+    // When "STOP" is clicked, we switch automatically back to the standard keyboard interface
+    switchPanel('keyboard');
+}
+
+function switchPanel(name) {
+    State.tab = name;
+    
+    // Reset Header Actives
+    document.querySelectorAll('.tb-btn').forEach(el => el.classList.remove('act'));
+    const btn = document.querySelector(`[data-t="${name}"]`) || document.querySelector(`[data-t="keyboard"]`);
+    if(btn) btn.classList.add('act');
+
+    // Reset Panels
+    document.querySelectorAll('.pn, .ly').forEach(el => el.classList.remove('vis'));
+    
+    // Handle specific transitions
+    if(name === 'voice') {
+        document.getElementById('v-overlay').classList.add('vis');
+        document.getElementById('la').classList.add('vis'); // Keep keyboard visible underneath
+    } else if(name === 'keyboard') {
+        document.getElementById('la').classList.add('vis');
+        document.getElementById('v-overlay').classList.remove('vis'); // Hide voice layer to show icons
+    } else {
+        const target = document.getElementById(`p-${name}`);
+        if(target) target.classList.add('vis');
+        document.getElementById('v-overlay').classList.remove('vis');
+    }
+    
+    updateSug();
+}
+
+// Global click delegation
+document.addEventListener('click', (e) => {
+    const k = e.target.closest('.k');
+    if(k) handlePress(k.textContent);
+    
+    const tb = e.target.closest('.tb-btn');
+    if(tb && tb.dataset.t) switchPanel(tb.dataset.t);
+});
+</script>
+</body>
+</html>
