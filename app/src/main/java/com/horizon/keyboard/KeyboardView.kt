@@ -97,7 +97,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     private var keyboardContainer: LinearLayout? = null
     private var symbolContainer: LinearLayout? = null
     private var mainContentContainer: FrameLayout? = null
-    private var settingsPanel: LinearLayout? = null
+    private var settingsPanel: View? = null
 
     // Clipboard history
     private var clipboardPanel: LinearLayout? = null
@@ -677,11 +677,6 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                     initSpeechRecognizer()
                     startVoiceRecognition()
                 }
-            }
-            } else {
-                destroyRecognizer()
-                initSpeechRecognizer()
-                startVoiceRecognition()
             }
         }
     }
@@ -1489,7 +1484,6 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                         refreshSettingsPanel()
                     })
                 }
-            }
             }
 
             // Close button with icon
