@@ -1,27 +1,24 @@
 package com.horizon.keyboard
 
-import android.Manifest
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.view.View
 import android.widget.LinearLayout
-import androidx.core.content.ContextCompat
 import com.horizon.keyboard.ui.bar.VoiceBar
 import com.horizon.keyboard.ui.panel.SettingsPanel
+import com.horizon.keyboard.voice.VoiceEngineRouter
+import com.horizon.keyboard.voice.VoiceSessionManager
 
 /**
- * Manages voice recognition — Android SpeechRecognizer, Whisper/Gemma engine delegation,
- * voice bar UI, and language toggling.
+ * Voice recognition coordinator — wires together voice UI, engine routing, and session management.
  *
- * Uses [VoiceBar] for the voice recording UI.
- * Uses [VoiceCommandProcessor] for voice command interpretation.
+ * Delegates to:
+ * - [VoiceBar] for voice recording UI
+ * - [VoiceEngineRouter] for engine selection (Whisper/Gemma/Android)
+ * - [VoiceSessionManager] for Android SpeechRecognizer lifecycle
+ * - [VoiceTranscriptionEngine] for Whisper/Gemma API recording
+ * - [VoiceCommandProcessor] for voice command interpretation
  */
 class KeyboardVoiceManager(
     private val context: Context,
@@ -33,11 +30,8 @@ class KeyboardVoiceManager(
     private val onSpace: (() -> Unit)? = null,
     private val onArrowKey: ((Int) -> Unit)? = null
 ) {
-    private var speechRecognizer: SpeechRecognizer? = null
-    private var isListening = false
     private var userStoppedListening = false
     private var currentVoiceLang = "en-US"
-
     private lateinit var voiceBar: VoiceBar
     private var pendingHideRunnable: Runnable? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -49,6 +43,28 @@ class KeyboardVoiceManager(
     var clipboardPanel: LinearLayout? = null
     var settingsPanelView: View? = null
 
+    // ─── Extracted Components ────────────────────────────────────
+
+    private val engineRouter = VoiceEngineRouter(
+        voiceEngine = voiceEngine,
+        getEngineType = { settingsPanel.voiceEngineType },
+        getCurrentLang = { currentVoiceLang }
+    )
+
+    private val sessionManager = VoiceSessionManager(
+        context = context,
+        onResult = { rawText ->
+            voiceBar.updateStatus("\"$rawText\"")
+            processVoiceInput(rawText)
+        },
+        onPartial = { partial -> voiceBar.updateStatus(partial) },
+        onStatusChange = { message, listening ->
+            voiceBar.updateStatus(message, if (listening) KeyboardTheme.ACCENT_GREEN else KeyboardTheme.TEXT_DIM)
+            voiceBar.updateListeningState(listening)
+        },
+        isStopped = { userStoppedListening }
+    )
+
     // ─── Voice Bar Creation ──────────────────────────────────────
 
     fun createVoiceBar(): LinearLayout {
@@ -58,11 +74,12 @@ class KeyboardVoiceManager(
             onStartListening = { toggleVoiceRecognition() },
             onStopListening = {
                 userStoppedListening = true
-                stopVoiceRecognition()
+                sessionManager.stop()
                 hideVoiceBar()
             },
             onExit = {
-                stopListening()
+                userStoppedListening = true
+                sessionManager.stop()
                 hideVoiceBar()
             }
         )
@@ -80,15 +97,11 @@ class KeyboardVoiceManager(
         pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
         pendingHideRunnable = null
         userStoppedListening = false
-        destroyRecognizer()
+        sessionManager.destroy()
 
         hideHeaderShowVoiceBar()
-
-        mainHandler.postDelayed({
-            initSpeechRecognizer()
-            startVoiceRecognition()
-        }, FADE_DURATION + 100)
-
+        sessionManager.language = currentVoiceLang
+        mainHandler.postDelayed({ sessionManager.start() }, FADE_DURATION + 100)
         scheduleHide(120_000L)
     }
 
@@ -101,43 +114,29 @@ class KeyboardVoiceManager(
         pendingHideRunnable = null
         userStoppedListening = false
 
-        destroyRecognizer()
+        sessionManager.destroy()
         hideHeaderShowVoiceBar()
 
-        val engineType = settingsPanel.voiceEngineType
-        when {
-            engineType == SettingsPanel.VoiceEngineType.GEMMA_API && voiceEngine.gemmaApiKey.isNotEmpty() -> {
-                mainHandler.postDelayed({ startGemmaRecording() }, FADE_DURATION + 100)
+        val engine = engineRouter.resolve()
+        mainHandler.postDelayed({
+            when (engine) {
+                VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
+                    voiceBar.updateListeningState(true)
+                    engineRouter.startRecording(engine)
+                }
+                VoiceEngineRouter.Engine.ANDROID -> {
+                    sessionManager.language = currentVoiceLang
+                    sessionManager.start()
+                }
             }
-            engineType == SettingsPanel.VoiceEngineType.WHISPER_GROQ && voiceEngine.groqApiKey.isNotEmpty() -> {
-                mainHandler.postDelayed({ startWhisperRecording() }, FADE_DURATION + 100)
-            }
-            engineType == SettingsPanel.VoiceEngineType.AUTO -> {
-                mainHandler.postDelayed({
-                    if (currentVoiceLang == VoiceLanguage.BANGLA.gemmaCode && voiceEngine.gemmaApiKey.isNotEmpty()) {
-                        startGemmaRecording()
-                    } else if (voiceEngine.groqApiKey.isNotEmpty()) {
-                        startWhisperRecording()
-                    } else {
-                        initSpeechRecognizer()
-                        startVoiceRecognition()
-                    }
-                }, FADE_DURATION + 100)
-            }
-            else -> {
-                mainHandler.postDelayed({
-                    initSpeechRecognizer()
-                    startVoiceRecognition()
-                }, FADE_DURATION + 100)
-            }
-        }
+        }, FADE_DURATION + 100)
 
         scheduleHide(120_000L)
     }
 
     fun hideVoiceBar() {
         userStoppedListening = true
-        stopVoiceRecognition()
+        sessionManager.stop()
 
         voiceBar.hide()
         headerBar?.let { header ->
@@ -160,119 +159,7 @@ class KeyboardVoiceManager(
         mainHandler.postDelayed(runnable, delayMs)
     }
 
-    // ─── Speech Recognizer (Android Built-in) ────────────────────
-
-    private fun initSpeechRecognizer() {
-        destroyRecognizer()
-
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            voiceBar.updateStatus("Speech not available")
-            return
-        }
-
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            voiceBar.updateStatus("Microphone permission needed")
-            return
-        }
-
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
-            setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) {
-                    isListening = true
-                    voiceBar.updateListeningState(true)
-                    voiceBar.updateStatus("Listening...", KeyboardTheme.ACCENT_GREEN)
-                }
-                override fun onBeginningOfSpeech() {
-                    voiceBar.updateStatus("Listening...")
-                }
-                override fun onRmsChanged(rmsdB: Float) {}
-                override fun onBufferReceived(buffer: ByteArray?) {}
-                override fun onEndOfSpeech() {
-                    voiceBar.updateStatus("Processing...", KeyboardTheme.TEXT_DIM)
-                }
-                override fun onError(error: Int) {
-                    isListening = false
-                    if (userStoppedListening) { resetVoiceButton(); return }
-                    val msg = when (error) {
-                        SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Listening..."
-                        SpeechRecognizer.ERROR_AUDIO -> "Audio error — retrying..."
-                        SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network error — retrying..."
-                        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Permission needed"
-                        else -> "Restarting..."
-                    }
-                    voiceBar.updateStatus(msg, KeyboardTheme.TEXT_DIM)
-                    resetVoiceButton()
-                    if (error != SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
-                        mainHandler.postDelayed({
-                            if (!userStoppedListening) { initSpeechRecognizer(); startVoiceRecognition() }
-                        }, 500)
-                    }
-                }
-                override fun onResults(results: Bundle?) {
-                    isListening = false
-                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    val rawText = matches?.firstOrNull() ?: ""
-                    if (rawText.isNotEmpty()) {
-                        processVoiceInput(rawText)
-                        voiceBar.updateStatus("\"$rawText\"")
-                    } else {
-                        voiceBar.updateStatus("Listening...")
-                    }
-                    resetVoiceButton()
-                    if (!userStoppedListening) {
-                        mainHandler.postDelayed({
-                            if (!userStoppedListening) { initSpeechRecognizer(); startVoiceRecognition() }
-                        }, 300)
-                    }
-                }
-                override fun onPartialResults(partialResults: Bundle?) {
-                    val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    val partial = matches?.firstOrNull() ?: ""
-                    if (partial.isNotEmpty()) voiceBar.updateStatus(partial)
-                }
-                override fun onEvent(eventType: Int, params: Bundle?) {}
-            })
-        }
-    }
-
-    private fun destroyRecognizer() {
-        try { speechRecognizer?.cancel(); speechRecognizer?.destroy() } catch (_: Exception) {}
-        speechRecognizer = null
-        isListening = false
-    }
-
-    private fun startVoiceRecognition() {
-        val recognizer = speechRecognizer ?: return
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, currentVoiceLang)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, currentVoiceLang)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-        }
-        try { recognizer.startListening(intent) } catch (_: Exception) {
-            voiceBar.updateStatus("Failed — tap mic to retry")
-        }
-    }
-
-    private fun stopVoiceRecognition() {
-        try { speechRecognizer?.stopListening() } catch (_: Exception) {}
-        isListening = false
-        resetVoiceButton()
-    }
-
-    private fun stopListening() {
-        userStoppedListening = true
-        stopVoiceRecognition()
-    }
-
-    private fun resetVoiceButton() {
-        voiceBar.updateListeningState(false)
-    }
-
-    // ─── Voice Engine Delegation (Whisper/Gemma) ─────────────────
+    // ─── Voice Engine Callbacks ──────────────────────────────────
 
     fun setupVoiceEngineCallbacks() {
         voiceEngine.onStatusUpdate = { message, color ->
@@ -286,72 +173,36 @@ class KeyboardVoiceManager(
         }
     }
 
-    private fun startGemmaRecording() {
-        isListening = true
-        voiceBar.updateListeningState(true)
-        voiceEngine.startGemmaRecording()
-    }
-
-    private fun stopGemmaRecordingAndTranscribe() {
-        isListening = false
-        voiceEngine.stopGemmaAndTranscribe()
-    }
-
-    private fun startWhisperRecording() {
-        isListening = true
-        voiceBar.updateListeningState(true)
-        voiceEngine.startWhisperRecording()
-    }
-
-    private fun stopWhisperRecordingAndTranscribe() {
-        isListening = false
-        voiceEngine.stopWhisperAndTranscribe()
-    }
-
     // ─── Voice Toggle ────────────────────────────────────────────
 
     fun toggleVoiceRecognition() {
-        val engineType = settingsPanel.voiceEngineType
-        if (isListening) {
-            userStoppedListening = true
-            if (engineType == SettingsPanel.VoiceEngineType.GEMMA_API && voiceEngine.isRecordingAudio) {
-                stopGemmaRecordingAndTranscribe()
-            } else if (engineType == SettingsPanel.VoiceEngineType.WHISPER_GROQ && voiceEngine.isRecordingAudio) {
-                stopWhisperRecordingAndTranscribe()
-            } else if (engineType == SettingsPanel.VoiceEngineType.AUTO && voiceEngine.isRecordingAudio) {
-                if (currentVoiceLang == VoiceLanguage.BANGLA.gemmaCode && voiceEngine.gemmaApiKey.isNotEmpty()) {
-                    stopGemmaRecordingAndTranscribe()
-                } else if (voiceEngine.groqApiKey.isNotEmpty()) {
-                    stopWhisperRecordingAndTranscribe()
-                } else {
-                    stopVoiceRecognition()
+        if (userStoppedListening || !engineRouter.isRecording() && !sessionManager.isActive) {
+            // Start listening
+            userStoppedListening = false
+            val engine = engineRouter.resolve()
+            when (engine) {
+                VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
+                    voiceBar.updateListeningState(true)
+                    engineRouter.startRecording(engine)
                 }
-            } else {
-                stopVoiceRecognition()
+                VoiceEngineRouter.Engine.ANDROID -> {
+                    sessionManager.language = currentVoiceLang
+                    sessionManager.start()
+                }
+            }
+        } else {
+            // Stop listening
+            userStoppedListening = true
+            val engine = engineRouter.resolve()
+            when (engine) {
+                VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
+                    engineRouter.stopAndTranscribe(engine)
+                }
+                VoiceEngineRouter.Engine.ANDROID -> {
+                    sessionManager.stop()
+                }
             }
             hideVoiceBar()
-        } else {
-            userStoppedListening = false
-            when (engineType) {
-                SettingsPanel.VoiceEngineType.GEMMA_API -> {
-                    if (voiceEngine.gemmaApiKey.isNotEmpty()) startGemmaRecording()
-                }
-                SettingsPanel.VoiceEngineType.WHISPER_GROQ -> {
-                    if (voiceEngine.groqApiKey.isNotEmpty()) startWhisperRecording()
-                }
-                SettingsPanel.VoiceEngineType.AUTO -> {
-                    if (currentVoiceLang == VoiceLanguage.BANGLA.gemmaCode && voiceEngine.gemmaApiKey.isNotEmpty()) {
-                        startGemmaRecording()
-                    } else if (voiceEngine.groqApiKey.isNotEmpty()) {
-                        startWhisperRecording()
-                    } else {
-                        destroyRecognizer(); initSpeechRecognizer(); startVoiceRecognition()
-                    }
-                }
-                else -> {
-                    destroyRecognizer(); initSpeechRecognizer(); startVoiceRecognition()
-                }
-            }
         }
     }
 
@@ -362,9 +213,12 @@ class KeyboardVoiceManager(
         voiceBar.updateStatus(
             if (currentVoiceLang == VoiceLanguage.ENGLISH.gemmaCode) "Language: English" else "Language: বাংলা"
         )
-        if (isListening) {
-            stopVoiceRecognition()
-            mainHandler.postDelayed({ startVoiceRecognition() }, 200)
+        if (sessionManager.isActive) {
+            sessionManager.stop()
+            mainHandler.postDelayed({
+                sessionManager.language = currentVoiceLang
+                sessionManager.start()
+            }, 200)
         }
     }
 
@@ -392,7 +246,7 @@ class KeyboardVoiceManager(
     fun cleanup() {
         pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
         pendingHideRunnable = null
-        destroyRecognizer()
+        sessionManager.destroy()
         voiceEngine.stopRecording()
     }
 
