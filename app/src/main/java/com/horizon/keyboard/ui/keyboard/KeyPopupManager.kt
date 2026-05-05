@@ -2,6 +2,7 @@ package com.horizon.keyboard.ui.keyboard
 
 import android.graphics.Color
 import android.graphics.Typeface
+import android.util.Log
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
@@ -73,7 +74,9 @@ object KeyPopupManager {
                 popup.x = (loc[0] - parentLoc[0]).toFloat()
                 popup.y = (loc[1] - parentLoc[1]).toFloat() - Dimensions.dp(anchor.context, 54)
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.w("KeyPopupManager", "Failed to show popup", e)
+        }
     }
 
     /**
@@ -83,6 +86,8 @@ object KeyPopupManager {
         try {
             popup.visibility = View.GONE
             (popup.parent as? ViewGroup)?.removeView(popup)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.w("KeyPopupManager", "Failed to hide popup", e)
+        }
     }
 }

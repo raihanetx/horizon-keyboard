@@ -3,6 +3,7 @@ package com.horizon.keyboard.voice
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
@@ -74,7 +75,7 @@ class VoiceSessionManager(
      * Stop listening but keep the recognizer alive.
      */
     fun stop() {
-        try { speechRecognizer?.stopListening() } catch (_: Exception) {}
+        try { speechRecognizer?.stopListening() } catch (e: Exception) { Log.w("VoiceSessionManager", "stopListening failed", e) }
         isListening = false
     }
 
@@ -82,7 +83,7 @@ class VoiceSessionManager(
      * Destroy the recognizer and release resources.
      */
     fun destroy() {
-        try { speechRecognizer?.cancel(); speechRecognizer?.destroy() } catch (_: Exception) {}
+        try { speechRecognizer?.cancel(); speechRecognizer?.destroy() } catch (e: Exception) { Log.w("VoiceSessionManager", "destroy failed", e) }
         speechRecognizer = null
         isListening = false
     }

@@ -3,6 +3,7 @@ package com.horizon.keyboard.voice.audio
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.util.Log
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -101,7 +102,9 @@ class AudioRecorder(private val context: Context) {
         try {
             audioRecord?.stop()
             audioRecord?.release()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.w("AudioRecorder", "release failed", e)
+        }
         audioRecord = null
     }
 }
