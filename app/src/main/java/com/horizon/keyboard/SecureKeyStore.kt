@@ -1,80 +1,45 @@
 package com.horizon.keyboard
 
 import android.content.Context
-import android.content.SharedPreferences
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+import com.horizon.keyboard.data.SecureKeyStore as DataSecureKeyStore
 
 /**
- * Secure API Key Storage using Android Keystore + EncryptedSharedPreferences.
+ * Compatibility shim — delegates to [com.horizon.keyboard.data.SecureKeyStore].
  *
- * Security layers:
- * 1. Android Keystore — hardware-backed key storage (TEE/StrongBox on supported devices)
- * 2. AES-256-GCM encryption — keys encrypted at rest in SharedPreferences
- * 3. MasterKey never exported — lives only in Keystore, inaccessible to other apps
- *
- * This is the standard Android approach for storing credentials.
- * Keys survive app updates but are cleared on app uninstall.
+ * Existing code keeps working unchanged. Will be deleted when all
+ * references are updated to import directly from the data package.
  */
 object SecureKeyStore {
 
-    private const val PREFS_FILE = "horizon_secure_keys"
+    fun init(context: Context) = DataSecureKeyStore.init(context)
 
-    @Volatile
-    private var prefs: SharedPreferences? = null
+    fun putString(context: Context, key: String, value: String) =
+        DataSecureKeyStore.putString(context, key, value)
 
-    /**
-     * Initialize the encrypted storage. Call once from Application or Service.
-     * Thread-safe via lazy initialization.
-     */
-    fun init(context: Context): SharedPreferences {
-        return prefs ?: synchronized(this) {
-            prefs ?: createEncryptedPrefs(context.applicationContext).also { prefs = it }
-        }
-    }
+    fun getString(context: Context, key: String, default: String = "") =
+        DataSecureKeyStore.getString(context, key, default)
 
-    private fun createEncryptedPrefs(context: Context): SharedPreferences {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
+    fun hasKey(context: Context, key: String) =
+        DataSecureKeyStore.hasKey(context, key)
 
-        return EncryptedSharedPreferences.create(
-            context,
-            PREFS_FILE,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-    }
+    fun removeKey(context: Context, key: String) =
+        DataSecureKeyStore.removeKey(context, key)
 
-    // ─── Key Storage API ─────────────────────────────────────────
+    fun setGroqKey(context: Context, key: String) =
+        DataSecureKeyStore.setGroqKey(context, key)
 
-    fun putString(context: Context, key: String, value: String) {
-        init(context).edit().putString(key, value).apply()
-    }
+    fun getGroqKey(context: Context) =
+        DataSecureKeyStore.getGroqKey(context)
 
-    fun getString(context: Context, key: String, default: String = ""): String {
-        return init(context).getString(key, default) ?: default
-    }
+    fun hasGroqKey(context: Context) =
+        DataSecureKeyStore.hasGroqKey(context)
 
-    fun hasKey(context: Context, key: String): Boolean {
-        return init(context).contains(key) && getString(context, key).isNotEmpty()
-    }
+    fun setGemmaKey(context: Context, key: String) =
+        DataSecureKeyStore.setGemmaKey(context, key)
 
-    fun removeKey(context: Context, key: String) {
-        init(context).edit().remove(key).apply()
-    }
+    fun getGemmaKey(context: Context) =
+        DataSecureKeyStore.getGemmaKey(context)
 
-    // ─── Convenience Methods for API Keys ────────────────────────
-
-    private const val KEY_GROQ_API = "groq_api_key"
-    private const val KEY_GEMMA_API = "gemma_api_key"
-
-    fun setGroqKey(context: Context, key: String) = putString(context, KEY_GROQ_API, key)
-    fun getGroqKey(context: Context): String = getString(context, KEY_GROQ_API)
-    fun hasGroqKey(context: Context): Boolean = hasKey(context, KEY_GROQ_API)
-
-    fun setGemmaKey(context: Context, key: String) = putString(context, KEY_GEMMA_API, key)
-    fun getGemmaKey(context: Context): String = getString(context, KEY_GEMMA_API)
-    fun hasGemmaKey(context: Context): Boolean = hasKey(context, KEY_GEMMA_API)
+    fun hasGemmaKey(context: Context) =
+        DataSecureKeyStore.hasGemmaKey(context)
 }

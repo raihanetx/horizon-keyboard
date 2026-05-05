@@ -1,94 +1,58 @@
 package com.horizon.keyboard
 
 import android.content.Context
-import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
-import android.util.TypedValue
+import com.horizon.keyboard.ui.theme.Colors
+import com.horizon.keyboard.ui.theme.Dimensions
+import com.horizon.keyboard.ui.theme.Drawables
 
 /**
- * Theme utilities for the keyboard — colors, drawables, dimension helpers.
- * Extracted from KeyboardView for single-responsibility.
+ * Compatibility shim — delegates to [Colors], [Drawables], and [Dimensions].
+ *
+ * Existing code keeps working unchanged. When each file is refactored in
+ * later steps, imports will switch directly to the new classes and this
+ * file will be deleted.
  */
 object KeyboardTheme {
 
-    // ─── Color Constants ─────────────────────────────────────────
+    // ─── Color Constants (delegated) ────────────────────────────
 
-    const val BG_DARK = "#1C1C1E"
-    const val BG_KEY = "#2C2C2E"
-    const val BG_KEY_PRESSED = "#505052"
-    const val BG_KEY_SOLID = "#48484A"
-    const val BG_KEY_SOLID_PRESSED = "#636366"
-    const val BG_PILL = "#3A3A3C"
-    const val BG_PILL_PRESSED = "#505052"
-    const val ACCENT_BLUE = "#0A84FF"
-    const val ACCENT_BLUE_PRESSED = "#0060CC"
-    const val ACCENT_GREEN = "#34C759"
-    const val ACCENT_ORANGE = "#FF9F0A"
-    const val ACCENT_RED = "#FF453A"
-    const val TEXT_PRIMARY = "#FFFFFF"
-    const val TEXT_SECONDARY = "#A0A0A8"
-    const val TEXT_TERTIARY = "#636366"
-    const val TEXT_DIM = "#8E8E93"
-    const val DIVIDER = "#333336"
-    const val SAVED_CLIP_BG = "#2A2A1C"
-    const val SAVED_CLIP_BORDER = "#FF9F0A"
-    const val SETTINGS_SELECTED_BG = "#1A3A5C"
-    const val SETTINGS_SELECTED_BORDER = "#0A84FF"
+    const val BG_DARK = Colors.BG_DARK
+    const val BG_KEY = Colors.BG_KEY
+    const val BG_KEY_PRESSED = Colors.BG_KEY_PRESSED
+    const val BG_KEY_SOLID = Colors.BG_KEY_SOLID
+    const val BG_KEY_SOLID_PRESSED = Colors.BG_KEY_SOLID_PRESSED
+    const val BG_PILL = Colors.BG_PILL
+    const val BG_PILL_PRESSED = Colors.BG_PILL_PRESSED
+    const val ACCENT_BLUE = Colors.ACCENT_BLUE
+    const val ACCENT_BLUE_PRESSED = Colors.ACCENT_BLUE_PRESSED
+    const val ACCENT_GREEN = Colors.ACCENT_GREEN
+    const val ACCENT_ORANGE = Colors.ACCENT_ORANGE
+    const val ACCENT_RED = Colors.ACCENT_RED
+    const val TEXT_PRIMARY = Colors.TEXT_PRIMARY
+    const val TEXT_SECONDARY = Colors.TEXT_SECONDARY
+    const val TEXT_TERTIARY = Colors.TEXT_TERTIARY
+    const val TEXT_DIM = Colors.TEXT_DIM
+    const val DIVIDER = Colors.DIVIDER
+    const val SAVED_CLIP_BG = Colors.SAVED_CLIP_BG
+    const val SAVED_CLIP_BORDER = Colors.SAVED_CLIP_BORDER
+    const val SETTINGS_SELECTED_BG = Colors.SETTINGS_SELECTED_BG
+    const val SETTINGS_SELECTED_BORDER = Colors.SETTINGS_SELECTED_BORDER
 
-    // ─── Background Drawables ────────────────────────────────────
+    // ─── Background Drawables (delegated) ───────────────────────
 
-    fun keyBgNormal(): GradientDrawable {
-        return GradientDrawable().apply {
-            orientation = GradientDrawable.Orientation.TOP_BOTTOM
-            colors = intArrayOf(Color.parseColor("#3D3D3F"), Color.parseColor(BG_KEY))
-            cornerRadius = 10f
-        }
-    }
+    fun keyBgNormal(): GradientDrawable = Drawables.keyBgNormal()
+    fun keyBgPressed(): GradientDrawable = Drawables.keyBgPressed()
+    fun keyBgSolid(color: String): GradientDrawable = Drawables.keyBgSolid(color)
+    fun pillBg(color: String): GradientDrawable = Drawables.pillBg(color)
+    fun roundedBg(color: String, radiusDp: Float = 6f, strokeColor: String? = null, strokeDp: Int = 1): GradientDrawable =
+        Drawables.roundedBg(color, radiusDp, strokeColor, strokeDp)
 
-    fun keyBgPressed(): GradientDrawable {
-        return GradientDrawable().apply {
-            setColor(Color.parseColor(BG_KEY_PRESSED))
-            cornerRadius = 10f
-        }
-    }
+    // ─── Dimension Helper (delegated) ───────────────────────────
 
-    fun keyBgSolid(color: String): GradientDrawable {
-        return GradientDrawable().apply {
-            setColor(Color.parseColor(color))
-            cornerRadius = 10f
-        }
-    }
+    fun dp(context: Context, value: Int): Int = Dimensions.dp(context, value)
 
-    fun pillBg(color: String): GradientDrawable {
-        return GradientDrawable().apply {
-            setColor(Color.parseColor(color))
-            cornerRadius = 20f
-        }
-    }
+    // ─── Key Masking (delegated) ────────────────────────────────
 
-    fun roundedBg(color: String, radiusDp: Float = 6f, strokeColor: String? = null, strokeDp: Int = 1): GradientDrawable {
-        return GradientDrawable().apply {
-            setColor(Color.parseColor(color))
-            cornerRadius = radiusDp
-            if (strokeColor != null) setStroke(strokeDp.toInt(), Color.parseColor(strokeColor))
-        }
-    }
-
-    // ─── Dimension Helper ────────────────────────────────────────
-
-    fun dp(context: Context, value: Int): Int {
-        return TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), context.resources.displayMetrics
-        ).toInt()
-    }
-
-    // ─── Key Masking ─────────────────────────────────────────────
-
-    fun maskKey(key: String): String {
-        if (key.length <= 12) return key
-        val prefix = key.take(4)
-        val suffix = key.takeLast(4)
-        val masked = "•".repeat((key.length - 8).coerceAtMost(16))
-        return "$prefix$masked$suffix"
-    }
+    fun maskKey(key: String): String = Dimensions.maskKey(key)
 }
