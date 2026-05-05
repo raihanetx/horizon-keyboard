@@ -141,6 +141,10 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         keyFactory.updateEnterKeyAppearance(action)
     }
 
+    fun stopVoice() {
+        voiceManager.hideVoiceBar()
+    }
+
     fun cleanup() {
         keyFactory.cleanup()
         voiceManager.cleanup()

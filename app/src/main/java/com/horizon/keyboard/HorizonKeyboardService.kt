@@ -39,6 +39,11 @@ class HorizonKeyboardService : InputMethodService() {
         keyboardView?.updateImeOptions(info?.imeOptions ?: EditorInfo.IME_ACTION_UNSPECIFIED)
     }
 
+    override fun onFinishInput() {
+        super.onFinishInput()
+        keyboardView?.stopVoice()
+    }
+
     override fun onDestroy() {
         keyboardView?.cleanup()
         keyboardView = null

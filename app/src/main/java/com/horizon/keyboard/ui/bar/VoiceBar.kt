@@ -50,8 +50,6 @@ class VoiceBar(
 
     // Internal button references
     private lateinit var stopBtn: ImageView
-    private lateinit var exitBtn: ImageView
-    private lateinit var startBtn: ImageView
 
     /**
      * Create and return the voice bar (hidden by default).
@@ -72,7 +70,7 @@ class VoiceBar(
             alpha = 0f
         }
 
-        // ── Language Toggle ──────────────────────────────────
+        // ── Language Toggle (left) ───────────────────────────
         val langContainer = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -106,68 +104,31 @@ class VoiceBar(
         langContainer.addView(langButtonText)
         bar.addView(langContainer)
 
-        // ── Status Text ──────────────────────────────────────
+        // ── "Listening" text (middle) ────────────────────────
         statusText = TextView(context).apply {
-            text = "Tap mic to start"
-            setTextColor(Color.parseColor(Colors.TEXT_DIM))
+            text = "Listening"
+            setTextColor(Color.parseColor(Colors.ACCENT_GREEN))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            typeface = Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
             gravity = Gravity.CENTER
             maxLines = 1
         }
         bar.addView(statusText)
 
-        // ── Button Container ─────────────────────────────────
-        val buttonContainer = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                Dimensions.dp(context, 28)
-            )
-        }
-
-        // Stop button (red X)
+        // ── Stop button (right) — single button ──────────────
         stopBtn = ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                Dimensions.dp(context, 24),
-                Dimensions.dp(context, 24)
-            )
-            setImageResource(R.drawable.ic_close)
-            setColorFilter(Color.parseColor(Colors.ACCENT_RED))
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            visibility = View.GONE
-            setOnClickListener { onStopListening() }
-        }
-        buttonContainer.addView(stopBtn)
-
-        // Exit button (keyboard dismiss)
-        exitBtn = ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                Dimensions.dp(context, 24),
-                Dimensions.dp(context, 24)
-            ).apply { marginStart = Dimensions.dp(context, 8) }
-            setImageResource(R.drawable.ic_keyboard_dismiss)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            visibility = View.GONE
-            setOnClickListener { onExit() }
-        }
-        buttonContainer.addView(exitBtn)
-
-        // Start button (green mic)
-        startBtn = ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(
                 Dimensions.dp(context, 28),
                 Dimensions.dp(context, 28)
             )
-            setImageResource(R.drawable.ic_voice)
-            setColorFilter(Color.parseColor(Colors.ACCENT_GREEN))
+            setImageResource(R.drawable.ic_close)
+            setColorFilter(Color.parseColor(Colors.ACCENT_RED))
             scaleType = ImageView.ScaleType.FIT_CENTER
-            setOnClickListener { onStartListening() }
+            setOnClickListener { onStopListening() }
         }
-        buttonContainer.addView(startBtn)
+        bar.addView(stopBtn)
 
-        bar.addView(buttonContainer)
         view = bar
         return bar
     }
@@ -188,20 +149,10 @@ class VoiceBar(
     // ─── State Updates ───────────────────────────────────────────
 
     /**
-     * Update the visual state based on whether we're actively listening.
-     * When listening: show stop + exit buttons, hide start button.
-     * When idle: show start button, hide stop + exit.
+     * Update the visual state — no-op since we always show the same layout.
      */
     fun updateListeningState(listening: Boolean) {
-        if (listening) {
-            startBtn.visibility = View.GONE
-            stopBtn.visibility = View.VISIBLE
-            exitBtn.visibility = View.VISIBLE
-        } else {
-            startBtn.visibility = View.VISIBLE
-            stopBtn.visibility = View.GONE
-            exitBtn.visibility = View.GONE
-        }
+        // Always show the same UI — no toggling needed
     }
 
     /**
@@ -213,15 +164,12 @@ class VoiceBar(
     }
 
     /**
-     * Update the status text with a message and optional color.
-     * @param message Status message to display.
-     * @param colorHex Optional hex color (null = keep current).
+     * Update the status text — always keeps "Listening" displayed.
      */
     fun updateStatus(message: String, colorHex: String? = null) {
-        statusText.text = message
-        if (colorHex != null) {
-            statusText.setTextColor(Color.parseColor(colorHex))
-        }
+        // Keep "Listening" static — don't change text
+        statusText.text = "Listening"
+        statusText.setTextColor(Color.parseColor(Colors.ACCENT_GREEN))
     }
 
     companion object {
