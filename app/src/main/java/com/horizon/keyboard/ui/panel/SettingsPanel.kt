@@ -1,15 +1,14 @@
 package com.horizon.keyboard.ui.panel
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.util.Log
 import android.graphics.drawable.GradientDrawable
-import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -21,6 +20,7 @@ import com.horizon.keyboard.VoiceTranscriptionEngine
 import com.horizon.keyboard.core.VoiceEngineType
 import com.horizon.keyboard.data.KeyboardPreferences
 import com.horizon.keyboard.data.SecureKeyStore
+import com.horizon.keyboard.ui.setup.ApiKeyActivity
 import com.horizon.keyboard.ui.theme.Dimensions
 import com.horizon.keyboard.ui.theme.Colors
 
@@ -74,6 +74,7 @@ class SettingsPanel(
     // ─── Panel Visibility ────────────────────────────────────────
 
     fun show() {
+        loadSettings()
         refreshPanel()
         panel?.visibility = View.VISIBLE
     }
@@ -202,12 +203,11 @@ class SettingsPanel(
             })
         }
 
-        // Groq API Key (always visible so users can enter key before selecting engine)
+        // Groq API Key
         panel.addView(sectionHeader("GROQ API KEY (WHISPER)"))
-        val maskedGroq = Dimensions.maskKey(voiceEngine.groqApiKey)
-        panel.addView(settingsTextInput(maskedGroq.ifEmpty { "Enter Groq API key..." }) { newKey ->
-            voiceEngine.groqApiKey = newKey
-            saveSettings()
+        val groqStatus = if (voiceEngine.groqApiKey.isNotEmpty()) "✓ Key saved (tap to edit)" else "Tap to add key..."
+        panel.addView(settingsOption(groqStatus, voiceEngine.groqApiKey.isNotEmpty()) {
+            context.startActivity(Intent(context, ApiKeyActivity::class.java))
         })
         panel.addView(TextView(context).apply {
             text = "🔒 Encrypted with Android Keystore · Free: 2,000 RPD"
@@ -216,12 +216,11 @@ class SettingsPanel(
             setPadding(dp(10), 0, 0, dp(4))
         })
 
-        // Gemma API Key (always visible)
+        // Gemma API Key
         panel.addView(sectionHeader("GOOGLE AI STUDIO API KEY (GEMMA)"))
-        val maskedGemma = Dimensions.maskKey(voiceEngine.gemmaApiKey)
-        panel.addView(settingsTextInput(maskedGemma.ifEmpty { "Enter API key..." }) { newKey ->
-            voiceEngine.gemmaApiKey = newKey
-            saveSettings()
+        val gemmaStatus = if (voiceEngine.gemmaApiKey.isNotEmpty()) "✓ Key saved (tap to edit)" else "Tap to add key..."
+        panel.addView(settingsOption(gemmaStatus, voiceEngine.gemmaApiKey.isNotEmpty()) {
+            context.startActivity(Intent(context, ApiKeyActivity::class.java))
         })
         panel.addView(TextView(context).apply {
             text = "🔒 Encrypted with Android Keystore · Free · Best for Bangla"
@@ -308,72 +307,4 @@ class SettingsPanel(
         return container
     }
 
-    private fun settingsTextInput(hint: String, onTextChanged: (String) -> Unit): LinearLayout {
-        val container = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply { bottomMargin = dp(4) }
-            gravity = Gravity.CENTER_VERTICAL
-            val pad = dp(10)
-            setPadding(pad, pad, pad, pad)
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor(Colors.BG_KEY))
-                cornerRadius = dp(6).toFloat()
-                setStroke(dp(1), Color.parseColor(Colors.BG_PILL))
-            }
-        }
-
-        // Inline EditText — works reliably in IME context (no AlertDialog needed)
-        val editText = EditText(context).apply {
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            typeface = Typeface.MONOSPACE
-            setBackgroundResource(0) // no default underline
-            isSingleLine = true
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
-            gravity = Gravity.CENTER_VERTICAL
-
-            if (hint.length > 8) {
-                // Existing key — show placeholder so user can paste a fresh key
-                setText("")
-                setHint("Tap to edit API key...")
-            } else {
-                setHint(hint)
-            }
-
-            // Save on focus lost
-            setOnFocusChangeListener { _, hasFocus ->
-                if (!hasFocus) {
-                    val key = text.toString().trim()
-                    if (key.isNotEmpty()) {
-                        onTextChanged(key)
-                    }
-                }
-            }
-        }
-        container.addView(editText)
-
-        // Save button
-        val saveBtn = TextView(context).apply {
-            text = "✓"
-            setTextColor(Color.parseColor(Colors.ACCENT_GREEN))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding(dp(8), 0, 0, 0)
-            setOnClickListener {
-                val key = editText.text.toString().trim()
-                if (key.isNotEmpty()) {
-                    onTextChanged(key)
-                    editText.setText("")
-                    editText.setHint("✓ Saved!")
-                    editText.setHintTextColor(Color.parseColor(Colors.ACCENT_GREEN))
-                }
-            }
-        }
-        container.addView(saveBtn)
-
-        return container
-    }
 }

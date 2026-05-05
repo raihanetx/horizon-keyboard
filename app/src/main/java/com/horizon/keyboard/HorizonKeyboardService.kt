@@ -41,7 +41,7 @@ class HorizonKeyboardService : InputMethodService() {
 
     override fun onFinishInput() {
         super.onFinishInput()
-        keyboardView?.stopVoice()
+        keyboardView?.stopAllVoice()
     }
 
     override fun onDestroy() {

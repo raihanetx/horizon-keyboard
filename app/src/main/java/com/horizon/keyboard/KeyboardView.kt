@@ -142,7 +142,15 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     }
 
     fun stopVoice() {
-        voiceManager.hideVoiceBar()
+        voiceManager.cleanup()
+    }
+
+    /**
+     * Stop all voice recording and release mic resources.
+     * Called when keyboard is hidden/dismissed — ensures mic is fully off.
+     */
+    fun stopAllVoice() {
+        voiceManager.cleanup()
     }
 
     fun cleanup() {
