@@ -19,20 +19,24 @@ import com.horizon.keyboard.ui.theme.Dimensions
 /**
  * Voice recording bar shown in the header area when voice mode is active.
  *
- * Contains: language toggle (EN/BN) | status text | action buttons (stop, exit, start).
+ * Contains: language toggle (EN/BN) | status text | action buttons (stop & transcribe, exit).
  * Replaces the header bar with a fade animation.
+ *
+ * Two distinct actions:
+ * - **Stop** (square icon): Stop recording → send audio for transcription → insert text
+ * - **Exit** (X icon): Cancel everything, discard audio, close voice bar
  *
  * @param context Android context.
  * @param onToggleLanguage Callback when language button is tapped.
  * @param onStartListening Callback when mic/start button is tapped.
- * @param onStopListening Callback when stop button is tapped.
- * @param onExit Callback when exit button is tapped.
+ * @param onStopAndTranscribe Callback when stop button is tapped (stop recording + transcribe).
+ * @param onExit Callback when exit/cancel button is tapped (discard audio).
  */
 class VoiceBar(
     private val context: Context,
     private val onToggleLanguage: () -> Unit,
     private val onStartListening: () -> Unit,
-    private val onStopListening: () -> Unit,
+    private val onStopAndTranscribe: () -> Unit,
     private val onExit: () -> Unit
 ) {
 
@@ -50,6 +54,7 @@ class VoiceBar(
 
     // Internal button references
     private lateinit var stopBtn: ImageView
+    private lateinit var exitBtn: ImageView
 
     /**
      * Create and return the voice bar (hidden by default).
@@ -116,18 +121,33 @@ class VoiceBar(
         }
         bar.addView(statusText)
 
-        // ── Stop button (right) — single button ──────────────
+        // ── Stop button (right) — stop recording + transcribe ──
         stopBtn = ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(
                 Dimensions.dp(context, 28),
                 Dimensions.dp(context, 28)
             )
+            setImageResource(R.drawable.ic_stop)  // square icon for "stop + transcribe"
+            setColorFilter(Color.parseColor(Colors.ACCENT_GREEN))
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setOnClickListener { onStopAndTranscribe() }
+        }
+        bar.addView(stopBtn)
+
+        // ── Exit button (right) — cancel and close ──────────
+        exitBtn = ImageView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                Dimensions.dp(context, 28),
+                Dimensions.dp(context, 28)
+            ).apply {
+                marginStart = Dimensions.dp(context, 8)
+            }
             setImageResource(R.drawable.ic_close)
             setColorFilter(Color.parseColor(Colors.ACCENT_RED))
             scaleType = ImageView.ScaleType.FIT_CENTER
-            setOnClickListener { onStopListening() }
+            setOnClickListener { onExit() }
         }
-        bar.addView(stopBtn)
+        bar.addView(exitBtn)
 
         view = bar
         return bar

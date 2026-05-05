@@ -85,11 +85,11 @@ class KeyboardVoiceManager(
             context = context,
             onToggleLanguage = { toggleVoiceLanguage() },
             onStartListening = { toggleVoiceRecognition() },
-            onStopListening = {
-                stopEverythingAndClose()
+            onStopAndTranscribe = {
+                stopRecordingAndTranscribe()
             },
             onExit = {
-                stopEverythingAndClose()
+                cancelAndClose()
             }
         )
         voiceBar.create()
@@ -168,6 +168,49 @@ class KeyboardVoiceManager(
         mainHandler.postDelayed({ unmuteSystemSounds() }, 500)
     }
 
+    /**
+     * Stop recording and send audio for transcription.
+     * For Whisper/Gemma: calls stopAndTranscribe which records → encodes → API call → insert text.
+     * For Android: stops SpeechRecognizer (results come via callbacks).
+     */
+    private fun stopRecordingAndTranscribe() {
+        userStoppedListening = true
+        val engine = engineRouter.resolve()
+        when (engine) {
+            VoiceEngineRouter.Engine.WHISPER, VoiceEngineRouter.Engine.GEMMA -> {
+                voiceBar.updateStatus("⏳ Transcribing...", Colors.ACCENT_ORANGE)
+                engineRouter.stopAndTranscribe(engine)
+                // Fallback: auto-hide after 15s if transcription hangs or errors
+                pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
+                pendingHideRunnable = Runnable { hideVoiceBar() }
+                mainHandler.postDelayed(pendingHideRunnable!!, 15_000L)
+            }
+            VoiceEngineRouter.Engine.ANDROID -> {
+                sessionManager.stop()
+                hideVoiceBar()
+            }
+        }
+    }
+
+    /**
+     * Cancel everything — discard audio, stop recording, close voice bar immediately.
+     */
+    private fun cancelAndClose() {
+        userStoppedListening = true
+        sessionManager.destroy()
+        voiceEngine.stopRecording()
+
+        pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingHideRunnable = null
+
+        voiceBar.hide()
+        headerBar?.let { header ->
+            header.visibility = View.VISIBLE
+            header.animate().alpha(1f).setDuration(FADE_DURATION).start()
+        }
+        mainHandler.postDelayed({ unmuteSystemSounds() }, 500)
+    }
+
     private fun stopEverythingAndClose() {
         userStoppedListening = true
         sessionManager.destroy()
@@ -217,6 +260,10 @@ class KeyboardVoiceManager(
         voiceEngine.onTranscriptionResult = { rawText ->
             voiceBar.updateStatus("\"$rawText\"")
             processVoiceInput(rawText)
+            // Auto-hide voice bar after transcription result
+            mainHandler.postDelayed({
+                hideVoiceBar()
+            }, 800)
         }
     }
 
