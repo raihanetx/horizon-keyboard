@@ -8,9 +8,6 @@ local.properties
 # APKs (use GitHub Releases for distribution)
 *.apk
 
-# Loose reference files (not part of build)
-voice typing ui
-
 # IDE
 .idea/
 *.iml
