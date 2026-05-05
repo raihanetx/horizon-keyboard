@@ -5,6 +5,10 @@ build/
 .gradle/
 local.properties
 
+# Signing keystore (generated in CI)
+*.jks
+*.keystore
+
 # APKs (use GitHub Releases for distribution)
 *.apk
 

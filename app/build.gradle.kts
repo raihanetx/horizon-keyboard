@@ -15,11 +15,24 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../app/horizon-release.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "horizon123"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "horizon"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "horizon123"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            val keystoreFile = file("../app/horizon-release.jks")
+            if (keystoreFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
