@@ -36,3 +36,57 @@ jobs:
           name: horizon-keyboard-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
+
+      - name: Upload APK for release
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: release-apk
+          path: ./apk
+
+      - name: Generate version tag
+        id: tag
+        run: |
+          TAG="v$(date +'%Y%m%d-%H%M%S')"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          # Get short commit message
+          MSG=$(git log -1 --pretty=format:'%s' | head -c 80)
+          echo "msg=$MSG" >> "$GITHUB_OUTPUT"
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Build ${{ steps.tag.outputs.tag }}"
+          body: |
+            ## Horizon Keyboard — ${{ steps.tag.outputs.tag }}
+
+            **Commit:** `${{ steps.tag.outputs.sha }}` — ${{ steps.tag.outputs.msg }}
+
+            ### Setup
+            1. Download `app-debug.apk` below
+            2. Install on your Android device (allow unknown sources)
+            3. Open Horizon Keyboard → follow the 4-step setup
+            4. Step 4: Add your voice engine API keys (encrypted with Android Keystore)
+          files: ./apk/app-debug.apk
+          draft: false
+          prerelease: false
