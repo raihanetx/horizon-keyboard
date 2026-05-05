@@ -1,6 +1,7 @@
 package com.horizon.keyboard
 
 import android.content.Context
+import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.view.View
@@ -40,6 +41,8 @@ class KeyboardVoiceManager(
     private var pendingHideRunnable: Runnable? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private val FADE_DURATION = 200L
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var savedNotificationVolume = 0
 
     // References to other panels for visibility toggling
     var headerBar: LinearLayout? = null
@@ -58,13 +61,19 @@ class KeyboardVoiceManager(
     private val sessionManager = VoiceSessionManager(
         context = context,
         onResult = { rawText ->
-            voiceBar.updateStatus("\"$rawText\"")
-            processVoiceInput(rawText)
+            if (!userStoppedListening) {
+                voiceBar.updateStatus("\"$rawText\"")
+                processVoiceInput(rawText)
+            }
         },
-        onPartial = { partial -> voiceBar.updateStatus(partial) },
+        onPartial = { partial ->
+            if (!userStoppedListening) voiceBar.updateStatus(partial)
+        },
         onStatusChange = { message, listening ->
-            voiceBar.updateStatus(message, if (listening) Colors.ACCENT_GREEN else Colors.TEXT_DIM)
-            voiceBar.updateListeningState(listening)
+            if (!userStoppedListening) {
+                voiceBar.updateStatus(message, if (listening) Colors.ACCENT_GREEN else Colors.TEXT_DIM)
+                voiceBar.updateListeningState(listening)
+            }
         },
         isStopped = { userStoppedListening }
     )
@@ -77,14 +86,10 @@ class KeyboardVoiceManager(
             onToggleLanguage = { toggleVoiceLanguage() },
             onStartListening = { toggleVoiceRecognition() },
             onStopListening = {
-                userStoppedListening = true
-                sessionManager.stop()
-                hideVoiceBar()
+                stopEverythingAndClose()
             },
             onExit = {
-                userStoppedListening = true
-                sessionManager.stop()
-                hideVoiceBar()
+                stopEverythingAndClose()
             }
         )
         voiceBar.create()
@@ -102,6 +107,7 @@ class KeyboardVoiceManager(
         pendingHideRunnable = null
         userStoppedListening = false
         sessionManager.destroy()
+        muteSounds()
 
         hideHeaderShowVoiceBar()
         sessionManager.language = currentVoiceLang
@@ -119,6 +125,7 @@ class KeyboardVoiceManager(
         userStoppedListening = false
 
         sessionManager.destroy()
+        muteSounds()
         hideHeaderShowVoiceBar()
 
         val engine = engineRouter.resolve()
@@ -140,13 +147,52 @@ class KeyboardVoiceManager(
 
     fun hideVoiceBar() {
         userStoppedListening = true
-        sessionManager.stop()
+        sessionManager.destroy()
+        voiceEngine.stopRecording()
+        unmuteSounds()
+
+        pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingHideRunnable = null
 
         voiceBar.hide()
         headerBar?.let { header ->
             header.visibility = View.VISIBLE
             header.animate().alpha(1f).setDuration(FADE_DURATION).start()
         }
+    }
+
+    private fun stopEverythingAndClose() {
+        userStoppedListening = true
+        sessionManager.destroy()
+        voiceEngine.stopRecording()
+        engineRouter.stopAndTranscribe(engineRouter.resolve())
+        unmuteSounds()
+
+        pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingHideRunnable = null
+
+        voiceBar.hide()
+        headerBar?.let { header ->
+            header.visibility = View.VISIBLE
+            header.animate().alpha(1f).setDuration(FADE_DURATION).start()
+        }
+    }
+
+    // ─── Sound Control ───────────────────────────────────────────
+
+    private fun muteSounds() {
+        try {
+            savedNotificationVolume = audioManager.getStreamVolume(AudioManager.STREAM_NOTIFICATION)
+            audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0)
+            audioManager.setStreamMute(AudioManager.STREAM_SYSTEM, true)
+        } catch (_: Exception) {}
+    }
+
+    private fun unmuteSounds() {
+        try {
+            audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, savedNotificationVolume, 0)
+            audioManager.setStreamMute(AudioManager.STREAM_SYSTEM, false)
+        } catch (_: Exception) {}
     }
 
     private fun hideHeaderShowVoiceBar() {
@@ -183,6 +229,7 @@ class KeyboardVoiceManager(
         if (userStoppedListening || !engineRouter.isRecording() && !sessionManager.isActive) {
             // Start listening
             userStoppedListening = false
+            muteSounds()
             val engine = engineRouter.resolve()
             when (engine) {
                 VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
@@ -195,18 +242,8 @@ class KeyboardVoiceManager(
                 }
             }
         } else {
-            // Stop listening
-            userStoppedListening = true
-            val engine = engineRouter.resolve()
-            when (engine) {
-                VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
-                    engineRouter.stopAndTranscribe(engine)
-                }
-                VoiceEngineRouter.Engine.ANDROID -> {
-                    sessionManager.stop()
-                }
-            }
-            hideVoiceBar()
+            // Stop listening and close voice bar
+            stopEverythingAndClose()
         }
     }
 
