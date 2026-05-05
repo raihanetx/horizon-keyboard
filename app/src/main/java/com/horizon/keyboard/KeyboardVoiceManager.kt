@@ -4,28 +4,23 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import android.util.TypedValue
-import android.view.Gravity
 import android.view.View
-import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.core.content.ContextCompat
+import com.horizon.keyboard.ui.bar.VoiceBar
 
 /**
  * Manages voice recognition — Android SpeechRecognizer, Whisper/Gemma engine delegation,
  * voice bar UI, and language toggling.
- * Extracted from KeyboardView for single-responsibility.
+ *
+ * Uses [VoiceBar] for the voice recording UI.
+ * Uses [VoiceCommandProcessor] for voice command interpretation.
  */
 class KeyboardVoiceManager(
     private val context: Context,
@@ -42,14 +37,9 @@ class KeyboardVoiceManager(
     private var userStoppedListening = false
     private var currentVoiceLang = "en-US"
 
-    // Voice bar views
-    private var voiceBarContainer: LinearLayout? = null
-    private var voiceStatusText: TextView? = null
-    private var voiceLangButton: TextView? = null
-    private var voiceStartStopButton: ImageView? = null
+    private lateinit var voiceBar: VoiceBar
     private var pendingHideRunnable: Runnable? = null
     private val mainHandler = Handler(Looper.getMainLooper())
-
     private val FADE_DURATION = 200L
 
     // References to other panels for visibility toggling
@@ -58,114 +48,26 @@ class KeyboardVoiceManager(
     var clipboardPanel: LinearLayout? = null
     var settingsPanel: View? = null
 
-    private fun dp(value: Int): Int = KeyboardTheme.dp(context, value)
-
     // ─── Voice Bar Creation ──────────────────────────────────────
 
     fun createVoiceBar(): LinearLayout {
-        val bar = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-            setBackgroundColor(Color.parseColor(KeyboardTheme.BG_KEY))
-            val pad = dp(8)
-            setPadding(pad, 0, pad, 0)
-            gravity = Gravity.CENTER_VERTICAL
-            visibility = View.GONE
-            alpha = 0f
-        }
-
-        // Language toggle
-        val langContainer = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(dp(56), dp(28))
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor(KeyboardTheme.BG_DARK))
-                cornerRadius = dp(14).toFloat()
-                setStroke(dp(1), Color.parseColor(KeyboardTheme.BG_PILL))
-            }
-            setOnClickListener { toggleVoiceLanguage() }
-        }
-        langContainer.addView(ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
-            setImageResource(R.drawable.ic_globe)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-        })
-        voiceLangButton = TextView(context).apply {
-            text = settingsManager.selectedLanguage.whisperCode.uppercase()
-            setTextColor(Color.parseColor(KeyboardTheme.TEXT_SECONDARY))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
-            typeface = Typeface.DEFAULT_BOLD
-            letterSpacing = 0.05f
-            setPadding(dp(4), 0, 0, 0)
-        }
-        langContainer.addView(voiceLangButton)
-        bar.addView(langContainer)
-
-        // Status text
-        voiceStatusText = TextView(context).apply {
-            text = "Tap mic to start"
-            setTextColor(Color.parseColor(KeyboardTheme.TEXT_DIM))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
-            gravity = Gravity.CENTER
-            maxLines = 1
-        }
-        bar.addView(voiceStatusText)
-
-        // Button container
-        val buttonContainer = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(28))
-        }
-
-        // Stop button
-        val stopBtn = ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(24), dp(24))
-            setImageResource(R.drawable.ic_close)
-            setColorFilter(Color.parseColor(KeyboardTheme.ACCENT_RED))
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            visibility = View.GONE
-            setOnClickListener {
+        voiceBar = VoiceBar(
+            context = context,
+            onToggleLanguage = { toggleVoiceLanguage() },
+            onStartListening = { toggleVoiceRecognition() },
+            onStopListening = {
                 userStoppedListening = true
                 stopVoiceRecognition()
                 hideVoiceBar()
-            }
-        }
-        buttonContainer.addView(stopBtn)
-
-        // Exit button
-        val exitBtn = ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(24), dp(24)).apply { marginStart = dp(8) }
-            setImageResource(R.drawable.ic_keyboard_dismiss)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            visibility = View.GONE
-            setOnClickListener {
+            },
+            onExit = {
                 stopListening()
                 hideVoiceBar()
             }
-        }
-        buttonContainer.addView(exitBtn)
-
-        // Start button
-        voiceStartStopButton = ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(28), dp(28))
-            setImageResource(R.drawable.ic_voice)
-            setColorFilter(Color.parseColor(KeyboardTheme.ACCENT_GREEN))
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            setOnClickListener { toggleVoiceRecognition() }
-        }
-        buttonContainer.addView(voiceStartStopButton)
-
-        bar.addView(buttonContainer)
-        bar.tag = arrayOf(stopBtn, exitBtn)
-
-        voiceBarContainer = bar
-        return bar
+        )
+        voiceBar.create()
+        voiceBar.updateLanguageLabel(settingsManager.selectedLanguage.whisperCode.uppercase())
+        return voiceBar.view
     }
 
     // ─── Voice Bar Visibility ────────────────────────────────────
@@ -179,13 +81,7 @@ class KeyboardVoiceManager(
         userStoppedListening = false
         destroyRecognizer()
 
-        headerBar?.animate()?.alpha(0f)?.setDuration(FADE_DURATION)?.withEndAction {
-            headerBar?.visibility = View.GONE
-        }
-        voiceBarContainer?.let { bar ->
-            bar.visibility = View.VISIBLE
-            bar.animate().alpha(1f).setDuration(FADE_DURATION).start()
-        }
+        hideHeaderShowVoiceBar()
 
         mainHandler.postDelayed({
             initSpeechRecognizer()
@@ -205,13 +101,7 @@ class KeyboardVoiceManager(
         userStoppedListening = false
 
         destroyRecognizer()
-        headerBar?.animate()?.alpha(0f)?.setDuration(FADE_DURATION)?.withEndAction {
-            headerBar?.visibility = View.GONE
-        }
-        voiceBarContainer?.let { bar ->
-            bar.visibility = View.VISIBLE
-            bar.animate().alpha(1f).setDuration(FADE_DURATION).start()
-        }
+        hideHeaderShowVoiceBar()
 
         val engineType = settingsManager.voiceEngineType
         when {
@@ -248,13 +138,18 @@ class KeyboardVoiceManager(
         userStoppedListening = true
         stopVoiceRecognition()
 
-        voiceBarContainer?.animate()?.alpha(0f)?.setDuration(FADE_DURATION)?.withEndAction {
-            voiceBarContainer?.visibility = View.GONE
-        }
+        voiceBar.hide()
         headerBar?.let { header ->
             header.visibility = View.VISIBLE
             header.animate().alpha(1f).setDuration(FADE_DURATION).start()
         }
+    }
+
+    private fun hideHeaderShowVoiceBar() {
+        headerBar?.animate()?.alpha(0f)?.setDuration(FADE_DURATION)?.withEndAction {
+            headerBar?.visibility = View.GONE
+        }
+        voiceBar.show()
     }
 
     private fun scheduleHide(delayMs: Long) {
@@ -270,14 +165,14 @@ class KeyboardVoiceManager(
         destroyRecognizer()
 
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            voiceStatusText?.text = "Speech not available"
+            voiceBar.updateStatus("Speech not available")
             return
         }
 
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            voiceStatusText?.text = "Microphone permission needed"
+            voiceBar.updateStatus("Microphone permission needed")
             return
         }
 
@@ -285,18 +180,16 @@ class KeyboardVoiceManager(
             setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) {
                     isListening = true
-                    updateVoiceBarListeningState(true)
-                    voiceStatusText?.text = "Listening..."
-                    voiceStatusText?.setTextColor(Color.parseColor(KeyboardTheme.ACCENT_GREEN))
+                    voiceBar.updateListeningState(true)
+                    voiceBar.updateStatus("Listening...", KeyboardTheme.ACCENT_GREEN)
                 }
                 override fun onBeginningOfSpeech() {
-                    voiceStatusText?.text = "Listening..."
+                    voiceBar.updateStatus("Listening...")
                 }
                 override fun onRmsChanged(rmsdB: Float) {}
                 override fun onBufferReceived(buffer: ByteArray?) {}
                 override fun onEndOfSpeech() {
-                    voiceStatusText?.text = "Processing..."
-                    voiceStatusText?.setTextColor(Color.parseColor(KeyboardTheme.TEXT_DIM))
+                    voiceBar.updateStatus("Processing...", KeyboardTheme.TEXT_DIM)
                 }
                 override fun onError(error: Int) {
                     isListening = false
@@ -308,8 +201,7 @@ class KeyboardVoiceManager(
                         SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Permission needed"
                         else -> "Restarting..."
                     }
-                    voiceStatusText?.text = msg
-                    voiceStatusText?.setTextColor(Color.parseColor(KeyboardTheme.TEXT_DIM))
+                    voiceBar.updateStatus(msg, KeyboardTheme.TEXT_DIM)
                     resetVoiceButton()
                     if (error != SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
                         mainHandler.postDelayed({
@@ -323,9 +215,9 @@ class KeyboardVoiceManager(
                     val rawText = matches?.firstOrNull() ?: ""
                     if (rawText.isNotEmpty()) {
                         processVoiceInput(rawText)
-                        voiceStatusText?.text = "\"$rawText\""
+                        voiceBar.updateStatus("\"$rawText\"")
                     } else {
-                        voiceStatusText?.text = "Listening..."
+                        voiceBar.updateStatus("Listening...")
                     }
                     resetVoiceButton()
                     if (!userStoppedListening) {
@@ -337,7 +229,7 @@ class KeyboardVoiceManager(
                 override fun onPartialResults(partialResults: Bundle?) {
                     val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     val partial = matches?.firstOrNull() ?: ""
-                    if (partial.isNotEmpty()) voiceStatusText?.text = partial
+                    if (partial.isNotEmpty()) voiceBar.updateStatus(partial)
                 }
                 override fun onEvent(eventType: Int, params: Bundle?) {}
             })
@@ -360,7 +252,7 @@ class KeyboardVoiceManager(
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
         try { recognizer.startListening(intent) } catch (_: Exception) {
-            voiceStatusText?.text = "Failed — tap mic to retry"
+            voiceBar.updateStatus("Failed — tap mic to retry")
         }
     }
 
@@ -376,43 +268,26 @@ class KeyboardVoiceManager(
     }
 
     private fun resetVoiceButton() {
-        updateVoiceBarListeningState(false)
-    }
-
-    private fun updateVoiceBarListeningState(listening: Boolean) {
-        val buttons = voiceBarContainer?.tag as? Array<*> ?: return
-        val stopBtn = buttons[0] as? ImageView
-        val exitBtn = buttons[1] as? ImageView
-
-        if (listening) {
-            voiceStartStopButton?.visibility = View.GONE
-            stopBtn?.visibility = View.VISIBLE
-            exitBtn?.visibility = View.VISIBLE
-        } else {
-            voiceStartStopButton?.visibility = View.VISIBLE
-            stopBtn?.visibility = View.GONE
-            exitBtn?.visibility = View.GONE
-        }
+        voiceBar.updateListeningState(false)
     }
 
     // ─── Voice Engine Delegation (Whisper/Gemma) ─────────────────
 
     fun setupVoiceEngineCallbacks() {
         voiceEngine.onStatusUpdate = { message, color ->
-            voiceStatusText?.text = message
-            if (color != null) voiceStatusText?.setTextColor(Color.parseColor(color))
+            voiceBar.updateStatus(message, color)
         }
         voiceEngine.isUserStopped = { userStoppedListening }
         voiceEngine.onShouldContinue = { !userStoppedListening }
         voiceEngine.onTranscriptionResult = { rawText ->
-            voiceStatusText?.text = "\"$rawText\""
+            voiceBar.updateStatus("\"$rawText\"")
             processVoiceInput(rawText)
         }
     }
 
     private fun startGemmaRecording() {
         isListening = true
-        updateVoiceBarListeningState(true)
+        voiceBar.updateListeningState(true)
         voiceEngine.startGemmaRecording()
     }
 
@@ -423,7 +298,7 @@ class KeyboardVoiceManager(
 
     private fun startWhisperRecording() {
         isListening = true
-        updateVoiceBarListeningState(true)
+        voiceBar.updateListeningState(true)
         voiceEngine.startWhisperRecording()
     }
 
@@ -482,9 +357,10 @@ class KeyboardVoiceManager(
     private fun toggleVoiceLanguage() {
         currentVoiceLang = if (currentVoiceLang == VoiceLanguage.ENGLISH.gemmaCode)
             VoiceLanguage.BANGLA.gemmaCode else VoiceLanguage.ENGLISH.gemmaCode
-        voiceLangButton?.text = if (currentVoiceLang == VoiceLanguage.ENGLISH.gemmaCode) "EN" else "BN"
-        voiceStatusText?.text = if (currentVoiceLang == VoiceLanguage.ENGLISH.gemmaCode)
-            "Language: English" else "Language: বাংলা"
+        voiceBar.updateLanguageLabel(if (currentVoiceLang == VoiceLanguage.ENGLISH.gemmaCode) "EN" else "BN")
+        voiceBar.updateStatus(
+            if (currentVoiceLang == VoiceLanguage.ENGLISH.gemmaCode) "Language: English" else "Language: বাংলা"
+        )
         if (isListening) {
             stopVoiceRecognition()
             mainHandler.postDelayed({ startVoiceRecognition() }, 200)
@@ -521,6 +397,6 @@ class KeyboardVoiceManager(
 
     fun syncLanguage() {
         currentVoiceLang = settingsManager.selectedLanguage.gemmaCode
-        voiceLangButton?.text = settingsManager.selectedLanguage.whisperCode.uppercase()
+        voiceBar.updateLanguageLabel(settingsManager.selectedLanguage.whisperCode.uppercase())
     }
 }
