@@ -334,11 +334,23 @@ class KeyboardVoiceManager(
 
     // ─── Lifecycle ───────────────────────────────────────────────
 
+    /**
+     * Force-stop everything: mic, session, voice bar. Called when keyboard is hidden/dismissed.
+     * Guarantees mic is OFF after this call.
+     */
     fun cleanup() {
+        userStoppedListening = true
         pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
         pendingHideRunnable = null
         sessionManager.destroy()
         voiceEngine.stopRecording()
+        // Force-release the AudioRecord if it's still alive
+        voiceEngine.shutdown()
+        voiceBar.hide()
+        headerBar?.let { header ->
+            header.visibility = View.VISIBLE
+            header.alpha = 1f
+        }
         unmuteSystemSounds()
     }
 

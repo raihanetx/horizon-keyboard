@@ -51,6 +51,15 @@ class HorizonKeyboardService : InputMethodService() {
         keyboardView?.updateImeOptions(info?.imeOptions ?: EditorInfo.IME_ACTION_UNSPECIFIED)
     }
 
+    /**
+     * Called when the keyboard window is hidden (user dismisses keyboard, switches apps, etc).
+     * This is the MOST RELIABLE place to stop the mic — fires even if onFinishInput doesn't.
+     */
+    override fun onWindowHidden() {
+        super.onWindowHidden()
+        keyboardView?.stopAllVoice()
+    }
+
     override fun onFinishInput() {
         super.onFinishInput()
         keyboardView?.stopAllVoice()
