@@ -1,5 +1,7 @@
 package com.horizon.keyboard
 
+import android.content.ClipboardManager
+import android.content.Context
 import android.inputmethodservice.InputMethodService
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -10,10 +12,15 @@ import com.horizon.keyboard.service.InputConnectionHelper
  *
  * Thin lifecycle shell — delegates all text operations to [InputConnectionHelper]
  * and all UI logic to [KeyboardView].
+ *
+ * Also handles clipboard monitoring — detects when user copies text in any app
+ * and feeds it to the clipboard panel for history tracking.
  */
 class HorizonKeyboardService : InputMethodService() {
 
     private var keyboardView: KeyboardView? = null
+    private var clipboardManager: ClipboardManager? = null
+    private var clipboardListener: ClipboardManager.OnPrimaryClipChangedListener? = null
 
     // ─── Lifecycle ───────────────────────────────────────────────
 
@@ -27,6 +34,11 @@ class HorizonKeyboardService : InputMethodService() {
             onPaste = { text -> commitText(text) }
             onArrowKey = { keyCode -> handleArrowKey(keyCode) }
         }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        startClipboardMonitor()
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
@@ -45,9 +57,32 @@ class HorizonKeyboardService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        stopClipboardMonitor()
         keyboardView?.cleanup()
         keyboardView = null
         super.onDestroy()
+    }
+
+    // ─── Clipboard Monitoring ────────────────────────────────────
+
+    private fun startClipboardMonitor() {
+        clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
+            val clip = clipboardManager?.primaryClip
+            if (clip != null && clip.itemCount > 0) {
+                val text = clip.getItemAt(0).text?.toString()
+                if (!text.isNullOrEmpty()) {
+                    // Feed to keyboard view's clipboard panel
+                    keyboardView?.onClipboardChanged(text)
+                }
+            }
+        }
+        clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
+    }
+
+    private fun stopClipboardMonitor() {
+        clipboardListener?.let { clipboardManager?.removePrimaryClipChangedListener(it) }
+        clipboardListener = null
     }
 
     // ─── Input Delegation ────────────────────────────────────────

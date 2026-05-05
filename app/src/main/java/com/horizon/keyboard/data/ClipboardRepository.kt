@@ -11,7 +11,7 @@ import org.json.JSONArray
  * - **History**: auto-tracked clipboard entries (max 50), persisted via SharedPreferences
  * - **Saved**: user-bookmarked clips (persistent until manually cleared)
  *
- * Thread-safe for single-thread (main) usage.
+ * Deduplication: checks the ENTIRE history, not just the first item.
  */
 class ClipboardRepository(context: Context) {
 
@@ -31,13 +31,26 @@ class ClipboardRepository(context: Context) {
     // ─── History Operations ──────────────────────────────────────
 
     /**
-     * Add a new clip to history (deduplicates, newest first).
-     * @return true if added, false if duplicate or empty.
+     * Add a new clip to history.
+     * Deduplicates against ALL history entries (not just first).
+     * If duplicate found, moves it to the top instead of adding again.
+     *
+     * @return true if the list changed, false if empty/too short.
      */
     fun addToHistory(text: String): Boolean {
         val trimmed = text.trim()
         if (trimmed.isEmpty() || trimmed.length < 2) return false
-        if (_history.firstOrNull() == trimmed) return false
+
+        // Check for duplicate anywhere in history
+        val existingIndex = _history.indexOf(trimmed)
+        if (existingIndex == 0) {
+            // Already at top — nothing to do
+            return false
+        }
+        if (existingIndex > 0) {
+            // Exists but not at top — move to top
+            _history.removeAt(existingIndex)
+        }
 
         _history.add(0, trimmed)
         while (_history.size > MAX_HISTORY_SIZE) {

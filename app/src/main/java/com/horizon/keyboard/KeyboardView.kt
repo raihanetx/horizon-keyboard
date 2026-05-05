@@ -137,6 +137,8 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         settingsPanel.loadSettings()
         voiceManager.setupVoiceEngineCallbacks()
         buildKeyboard()
+        // Load current system clipboard into history
+        loadInitialClipboard()
     }
 
     // ─── Public API ──────────────────────────────────────────────
@@ -164,8 +166,26 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         clipboardPanel.cleanup()
     }
 
+    /**
+     * Called by service when clipboard changes in any app.
+     * Feeds the clip to the clipboard panel for history tracking.
+     */
     fun onClipboardChanged(text: String) {
-        clipboardPanel.onClipboardChanged(text)
+        clipboardPanel.addClip(text)
+    }
+
+    /**
+     * Load current system clipboard into history on first keyboard show.
+     */
+    fun loadInitialClipboard() {
+        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+        val clip = cm?.primaryClip
+        if (clip != null && clip.itemCount > 0) {
+            val text = clip.getItemAt(0).text?.toString()
+            if (!text.isNullOrEmpty()) {
+                clipboardPanel.addClip(text)
+            }
+        }
     }
 
     // ─── Build Keyboard ──────────────────────────────────────────

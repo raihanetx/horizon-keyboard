@@ -1,6 +1,5 @@
 package com.horizon.keyboard.ui.panel
 
-import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
@@ -26,14 +25,10 @@ import com.horizon.keyboard.ui.theme.Dimensions
 
 
 /**
- * Smart clipboard panel — history tracking, saved clips, search, live listener.
+ * Smart clipboard panel — history tracking, saved clips, search.
  *
- * Features:
- * - Live clipboard monitoring via [ClipboardManager.OnPrimaryClipChangedListener]
- * - Two tabs: History (auto-tracked) and Saved (user-bookmarked)
- * - Search/filter across clips
- * - Tap to paste, tap ★ to save, tap ✕ to delete
- * - Persistent storage via [ClipboardRepository]
+ * Paste flow: tapping a clip calls [onPaste] which inserts text directly into the input field,
+ * then closes the panel and returns to keyboard.
  *
  * @param context Android context.
  * @param repository Persistent clipboard data repository.
@@ -64,10 +59,6 @@ class ClipboardPanel(
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // Clipboard listener
-    private var clipboardListener: ClipboardManager.OnPrimaryClipChangedListener? = null
-    private var clipboardManager: ClipboardManager? = null
-
     private fun dp(value: Int): Int = Dimensions.dp(context, value)
 
     // ─── Panel Creation ──────────────────────────────────────────
@@ -82,16 +73,10 @@ class ClipboardPanel(
             visibility = View.GONE
         }
 
-        // ── Header Row ──────────────────────────────────────
         panel.addView(createHeader())
-
-        // ── Search Bar ──────────────────────────────────────
         panel.addView(createSearchBar())
-
-        // ── Tab Row (History | Saved) ───────────────────────
         panel.addView(createTabRow())
 
-        // ── Clip List (scrollable) ──────────────────────────
         val scrollView = ScrollView(context).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
             isVerticalScrollBarEnabled = true
@@ -105,7 +90,6 @@ class ClipboardPanel(
             )
         }
 
-        // Empty state
         emptyStateText = TextView(context).apply {
             text = "📋 Copy text anywhere to track it here"
             setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
@@ -117,7 +101,6 @@ class ClipboardPanel(
         }
         scrollContent.addView(emptyStateText)
 
-        // History list
         historyContainer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(
@@ -127,7 +110,6 @@ class ClipboardPanel(
         }
         scrollContent.addView(historyContainer)
 
-        // Saved list (hidden by default)
         savedContainer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(
@@ -142,10 +124,6 @@ class ClipboardPanel(
         panel.addView(scrollView)
 
         this.panel = panel
-
-        // Start clipboard listener
-        startClipboardListener()
-
         return panel
     }
 
@@ -174,13 +152,11 @@ class ClipboardPanel(
             gravity = Gravity.CENTER_VERTICAL
         })
 
-        // Clear button
         header.addView(textButton("Clear") {
             if (showingSaved) repository.clearSaved() else repository.clearHistory()
             refreshList()
         })
 
-        // Close button
         header.addView(ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginStart = dp(8) }
             setImageResource(R.drawable.ic_close)
@@ -301,34 +277,9 @@ class ClipboardPanel(
     val isVisible: Boolean
         get() = panel?.visibility == View.VISIBLE
 
-    // ─── Clipboard Listener ──────────────────────────────────────
+    // ─── Add clip (called from service clipboard listener) ───────
 
-    private fun startClipboardListener() {
-        clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
-            val clip = clipboardManager?.primaryClip
-            if (clip != null && clip.itemCount > 0) {
-                val text = clip.getItemAt(0).text?.toString()
-                if (!text.isNullOrEmpty()) {
-                    mainHandler.post {
-                        if (repository.addToHistory(text)) {
-                            refreshList()
-                        }
-                    }
-                }
-            }
-        }
-        clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
-    }
-
-    fun stopClipboardListener() {
-        clipboardListener?.let { clipboardManager?.removePrimaryClipChangedListener(it) }
-        clipboardListener = null
-    }
-
-    // ─── Clipboard Tracking (legacy compat) ──────────────────────
-
-    fun onClipboardChanged(text: String) {
+    fun addClip(text: String) {
         if (repository.addToHistory(text)) {
             if (isVisible) refreshList()
         }
@@ -386,9 +337,16 @@ class ClipboardPanel(
                 if (isSaved) setStroke(dp(1), Color.parseColor(Colors.SAVED_CLIP_BORDER))
             }
             gravity = Gravity.CENTER_VERTICAL
+            isClickable = true
+            isFocusable = true
         }
 
-        // Clip text (truncated)
+        // Tapping the whole item = paste
+        item.setOnClickListener {
+            doPaste(text)
+        }
+
+        // Clip text
         item.addView(TextView(context).apply {
             this.text = text
             setTextColor(Color.WHITE)
@@ -412,13 +370,6 @@ class ClipboardPanel(
             refreshList()
         })
 
-        // Paste button
-        item.addView(actionButton("📋", Color.parseColor(Colors.ACCENT_BLUE)) {
-            onPaste?.invoke(text)
-            hide()
-            onShowKeyboard()
-        })
-
         // Delete button
         item.addView(actionButton("✕", Color.parseColor(Colors.TEXT_TERTIARY)) {
             if (isSaved) repository.removeFromSaved(index) else repository.removeFromHistory(index)
@@ -426,6 +377,19 @@ class ClipboardPanel(
         })
 
         return item
+    }
+
+    /**
+     * Paste text into the input field and return to keyboard.
+     * Calls the onPaste callback which commits text via InputConnection.
+     */
+    private fun doPaste(text: String) {
+        onPaste?.invoke(text)
+        // Small delay to ensure paste commits before switching panels
+        mainHandler.postDelayed({
+            hide()
+            onShowKeyboard()
+        }, 50)
     }
 
     // ─── UI Helpers ──────────────────────────────────────────────
@@ -437,9 +401,7 @@ class ClipboardPanel(
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             gravity = Gravity.CENTER_VERTICAL
-            setOnClickListener {
-                onClick()
-            }
+            setOnClickListener { onClick() }
         }
     }
 
@@ -488,6 +450,6 @@ class ClipboardPanel(
     // ─── Cleanup ─────────────────────────────────────────────────
 
     fun cleanup() {
-        stopClipboardListener()
+        // No listener to clean up — service handles clipboard monitoring
     }
 }
