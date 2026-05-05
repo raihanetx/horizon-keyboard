@@ -175,7 +175,6 @@ class KeyboardView(context: Context) : LinearLayout(context) {
                 FrameLayout.LayoutParams.WRAP_CONTENT
             )
         }
-        keyboardContainer?.addView(rowBuilder.createNumberRow())
         keyboardContainer?.addView(rowBuilder.createKeyRow1())
         keyboardContainer?.addView(rowBuilder.createKeyRow2())
         keyboardContainer?.addView(rowBuilder.createKeyRow3())
