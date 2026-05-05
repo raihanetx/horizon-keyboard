@@ -149,7 +149,6 @@ class KeyboardVoiceManager(
         userStoppedListening = true
         sessionManager.destroy()
         voiceEngine.stopRecording()
-        unmuteSounds()
 
         pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
         pendingHideRunnable = null
@@ -159,14 +158,13 @@ class KeyboardVoiceManager(
             header.visibility = View.VISIBLE
             header.animate().alpha(1f).setDuration(FADE_DURATION).start()
         }
+        unmuteSoundsDelayed()
     }
 
     private fun stopEverythingAndClose() {
         userStoppedListening = true
         sessionManager.destroy()
         voiceEngine.stopRecording()
-        engineRouter.stopAndTranscribe(engineRouter.resolve())
-        unmuteSounds()
 
         pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
         pendingHideRunnable = null
@@ -176,6 +174,7 @@ class KeyboardVoiceManager(
             header.visibility = View.VISIBLE
             header.animate().alpha(1f).setDuration(FADE_DURATION).start()
         }
+        unmuteSoundsDelayed()
     }
 
     // ─── Sound Control ───────────────────────────────────────────
@@ -184,15 +183,23 @@ class KeyboardVoiceManager(
         try {
             savedNotificationVolume = audioManager.getStreamVolume(AudioManager.STREAM_NOTIFICATION)
             audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0)
-            audioManager.setStreamMute(AudioManager.STREAM_SYSTEM, true)
+            audioManager.setStreamVolume(AudioManager.STREAM_SYSTEM, 0, 0)
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+            audioManager.setRingerMode(AudioManager.RINGER_MODE_SILENT)
         } catch (_: Exception) {}
     }
 
     private fun unmuteSounds() {
         try {
+            audioManager.setRingerMode(AudioManager.RINGER_MODE_NORMAL)
             audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, savedNotificationVolume, 0)
-            audioManager.setStreamMute(AudioManager.STREAM_SYSTEM, false)
+            audioManager.setStreamVolume(AudioManager.STREAM_SYSTEM, savedNotificationVolume, 0)
         } catch (_: Exception) {}
+    }
+
+    /** Delayed unmute — waits for SpeechRecognizer stop sounds to finish. */
+    private fun unmuteSoundsDelayed() {
+        mainHandler.postDelayed({ unmuteSounds() }, 500)
     }
 
     private fun hideHeaderShowVoiceBar() {
@@ -289,6 +296,7 @@ class KeyboardVoiceManager(
         pendingHideRunnable = null
         sessionManager.destroy()
         voiceEngine.stopRecording()
+        unmuteSounds()
     }
 
     fun syncLanguage() {
