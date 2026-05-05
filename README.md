@@ -132,4 +132,4 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 
 ## License
 
-Open source. Use it however you like.
+All Rights Reserved. This code is the property of raihanetx. No part of this software may be used, copied, modified, or distributed without explicit written permission from the author.
