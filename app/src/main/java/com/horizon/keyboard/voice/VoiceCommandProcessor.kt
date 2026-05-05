@@ -22,7 +22,7 @@ object VoiceCommandProcessor {
     private val COMMAND_KEYWORDS = setOf(
         "command", "cmd", "slash", "forward slash", "skip", "escape", "esc",
         "enter", "return", "submit", "space", "blank", "backspace", "back", "delete",
-        "dot", "period", "full stop", "comma", "at the rate", "at sign", "at",
+        "dot", "period", "full stop", "comma", "at the rate", "at sign",
         "hash", "pound", "hashtag", "underscore", "hyphen", "dash", "minus",
         "plus", "equals", "equal", "question mark", "exclamation", "exclamation mark",
         "open bracket", "open brace", "close bracket", "close brace", "colon", "semicolon",
@@ -107,7 +107,7 @@ object VoiceCommandProcessor {
                 word == "backspace" || word == "back space" || word == "delete" -> { flushBuffer(); actions.add(Action.Backspace); i++ }
                 word == "dot" || word == "period" || word == "full stop" -> { buffer.append("."); i++ }
                 word == "comma" -> { buffer.append(","); i++ }
-                word == "at the rate" || word == "at sign" || word == "at" -> { buffer.append("@"); i++ }
+                word == "at the rate" || word == "at sign" -> { buffer.append("@"); i++ }
                 word == "hash" || word == "pound" || word == "hashtag" -> { buffer.append("#"); i++ }
                 word == "underscore" -> { buffer.append("_"); i++ }
                 word == "hyphen" || word == "dash" || word == "minus" -> { buffer.append("-"); i++ }

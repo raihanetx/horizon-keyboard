@@ -118,7 +118,8 @@ class VoiceTranscriptionEngine(
             return
         }
 
-        val base64Audio = Base64.encodeToString(pcmData, Base64.NO_WRAP)
+        val wavData = WavEncoder.encode(pcmData, AudioRecorder.SAMPLE_RATE, 1, 16)
+        val base64Audio = Base64.encodeToString(wavData, Base64.NO_WRAP)
         val langName = if (currentVoiceLang == "bn-BD") "Bangla" else "English"
         val model = if (currentVoiceLang == "bn-BD") gemmaModelBn else gemmaModelEn
 

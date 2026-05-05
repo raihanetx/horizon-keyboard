@@ -1,5 +1,6 @@
 package com.horizon.keyboard.voice.api
 
+import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -22,7 +23,7 @@ object GemmaApi {
     /**
      * Transcribe Base64-encoded PCM audio via Gemma API.
      *
-     * @param base64Audio Base64-encoded raw PCM audio data.
+     * @param base64Audio Base64-encoded WAV audio data (PCM with WAV header).
      * @param apiKey Google AI Studio API key.
      * @param language Human-readable language name ("English" or "Bangla").
      * @param model Model identifier (e.g. "gemma-4-e4b-it").
@@ -41,7 +42,7 @@ object GemmaApi {
         {
             "contents": [{
                 "parts": [
-                    {"inline_data": {"mime_type": "audio/pcm", "data": "$base64Audio"}},
+                    {"inline_data": {"mime_type": "audio/wav", "data": "$base64Audio"}},
                     {"text": "Transcribe this audio into $language text. Return ONLY the transcribed text, nothing else."}
                 ]
             }],
@@ -79,14 +80,18 @@ object GemmaApi {
      * Response format: {"candidates":[{"content":{"parts":[{"text":"..."}]}}]}
      */
     private fun parseTranscriptionResult(response: String): String {
-        val textStart = response.indexOf("\"text\":")
-        if (textStart == -1) return ""
-        val afterText = response.substring(textStart + 7).trim()
-        if (afterText.startsWith("\"")) {
-            val endQuote = afterText.indexOf("\"", 1)
-            if (endQuote > 0) return afterText.substring(1, endQuote).trim()
+        return try {
+            val json = JSONObject(response)
+            json.getJSONArray("candidates")
+                .getJSONObject(0)
+                .getJSONObject("content")
+                .getJSONArray("parts")
+                .getJSONObject(0)
+                .getString("text")
+                .trim()
+        } catch (_: Exception) {
+            ""
         }
-        return ""
     }
 
     /**
