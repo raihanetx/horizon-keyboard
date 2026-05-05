@@ -38,19 +38,14 @@ jobs:
             -keypass horizon123 \
             -dname "CN=Horizon Keyboard, OU=Dev, O=Horizon, L=Unknown, ST=Unknown, C=US"
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease
-        env:
-          KEYSTORE_FILE: horizon-release.jks
-          KEYSTORE_PASSWORD: horizon123
-          KEY_ALIAS: horizon
-          KEY_PASSWORD: horizon123
+      - name: Build Debug APK (signed)
+        run: ./gradlew assembleDebug
 
       - name: Upload APK for release
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 1
 
       - name: Upload Debug APK
@@ -97,13 +92,13 @@ jobs:
 
             **Commit:** `${{ steps.tag.outputs.sha }}` — ${{ steps.tag.outputs.msg }}
 
-            ### Setup
-            1. Download `app-release.apk` below
+            ### Install
+            1. Download `app-debug.apk` below
             2. Install on your Android device (allow unknown sources)
             3. Open Horizon Keyboard → follow the 4-step setup
             4. Step 4: Add your voice engine API keys (encrypted with Android Keystore)
 
-            > **Note:** If updating from a previous build, uninstall the old version first.
-          files: ./apk/app-release.apk
+            > Uninstall old version first if package conflict occurs.
+          files: ./apk/app-debug.apk
           draft: false
           prerelease: false

@@ -25,6 +25,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            val keystoreFile = file("../app/horizon-release.jks")
+            if (keystoreFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
