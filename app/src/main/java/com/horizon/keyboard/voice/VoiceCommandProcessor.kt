@@ -1,4 +1,4 @@
-package com.horizon.keyboard
+package com.horizon.keyboard.voice
 
 /**
  * Processes raw voice input text into keyboard actions.

@@ -9,6 +9,7 @@ import com.horizon.keyboard.ui.bar.VoiceBar
 import com.horizon.keyboard.ui.panel.SettingsPanel
 import com.horizon.keyboard.voice.VoiceEngineRouter
 import com.horizon.keyboard.voice.VoiceSessionManager
+import com.horizon.keyboard.voice.VoiceCommandProcessor
 
 /**
  * Voice recognition coordinator — wires together voice UI, engine routing, and session management.
