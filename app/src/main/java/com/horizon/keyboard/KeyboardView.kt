@@ -16,6 +16,7 @@ import com.horizon.keyboard.ui.keyboard.KeyPopupManager
 import com.horizon.keyboard.ui.keyboard.KeyRowBuilder
 import com.horizon.keyboard.ui.keyboard.KeyViewFactory
 import com.horizon.keyboard.ui.keyboard.SymbolPanel
+import com.horizon.keyboard.data.ClipboardRepository
 import com.horizon.keyboard.ui.panel.ClipboardPanel
 import com.horizon.keyboard.ui.panel.PanelHost
 import com.horizon.keyboard.ui.panel.SettingsPanel
@@ -110,7 +111,11 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     private val settingsPanel = SettingsPanel(context, voiceEngine) {
         panelHost.showKeyboard()
     }
-    private val clipboardPanel = ClipboardPanel(context, onPaste = { onPaste?.invoke(it) }) {
+    private val clipboardPanel = ClipboardPanel(
+        context = context,
+        repository = ClipboardRepository(context),
+        onPaste = { onPaste?.invoke(it) }
+    ) {
         panelHost.showKeyboard()
     }
     private val voiceManager = KeyboardVoiceManager(
@@ -156,6 +161,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     fun cleanup() {
         keyFactory.cleanup()
         voiceManager.cleanup()
+        clipboardPanel.cleanup()
     }
 
     fun onClipboardChanged(text: String) {

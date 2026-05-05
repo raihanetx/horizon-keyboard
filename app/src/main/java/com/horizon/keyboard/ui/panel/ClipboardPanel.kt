@@ -1,21 +1,24 @@
 package com.horizon.keyboard.ui.panel
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.TypedValue
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import android.widget.Toast
 import com.horizon.keyboard.R
 import com.horizon.keyboard.data.ClipboardRepository
 import com.horizon.keyboard.ui.theme.Colors
@@ -23,29 +26,47 @@ import com.horizon.keyboard.ui.theme.Dimensions
 
 
 /**
- * Clipboard panel UI — history tracking, saved clips, paste/delete actions.
+ * Smart clipboard panel — history tracking, saved clips, search, live listener.
  *
- * Pure UI component. Data managed by [ClipboardRepository].
+ * Features:
+ * - Live clipboard monitoring via [ClipboardManager.OnPrimaryClipChangedListener]
+ * - Two tabs: History (auto-tracked) and Saved (user-bookmarked)
+ * - Search/filter across clips
+ * - Tap to paste, tap ★ to save, tap ✕ to delete
+ * - Persistent storage via [ClipboardRepository]
  *
  * @param context Android context.
- * @param repository Clipboard data repository.
- * @param onPaste Callback when paste button is tapped.
+ * @param repository Persistent clipboard data repository.
+ * @param onPaste Callback to insert text into the input field.
  * @param onShowKeyboard Callback when clipboard panel is closed.
  */
 class ClipboardPanel(
     private val context: Context,
-    private val repository: ClipboardRepository = ClipboardRepository(),
+    private val repository: ClipboardRepository,
     private val onPaste: ((String) -> Unit)? = null,
     private val onShowKeyboard: () -> Unit = {}
 ) {
 
     var panel: LinearLayout? = null
         private set
-    private var clipboardListContainer: LinearLayout? = null
-    private var savedClipboardListContainer: LinearLayout? = null
+
+    private var historyContainer: LinearLayout? = null
+    private var savedContainer: LinearLayout? = null
+    private var searchInput: EditText? = null
+    private var historyTab: TextView? = null
+    private var savedTab: TextView? = null
+    private var historyCountBadge: TextView? = null
+    private var savedCountBadge: TextView? = null
+    private var emptyStateText: TextView? = null
+
+    private var showingSaved = false
+    private var searchQuery = ""
+
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var holdToSaveRunnable: Runnable? = null
-    private var holdProgressView: View? = null
+
+    // Clipboard listener
+    private var clipboardListener: ClipboardManager.OnPrimaryClipChangedListener? = null
+    private var clipboardManager: ClipboardManager? = null
 
     private fun dp(value: Int): Int = Dimensions.dp(context, value)
 
@@ -54,27 +75,96 @@ class ClipboardPanel(
     fun createPanel(): LinearLayout {
         val panel = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(200))
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(260))
             setBackgroundColor(Color.parseColor(Colors.BG_DARK))
             val pad = dp(8)
             setPadding(pad, pad, pad, pad)
             visibility = View.GONE
         }
 
-        // Header row
-        val headerRow = LinearLayout(context).apply {
+        // ── Header Row ──────────────────────────────────────
+        panel.addView(createHeader())
+
+        // ── Search Bar ──────────────────────────────────────
+        panel.addView(createSearchBar())
+
+        // ── Tab Row (History | Saved) ───────────────────────
+        panel.addView(createTabRow())
+
+        // ── Clip List (scrollable) ──────────────────────────
+        val scrollView = ScrollView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+            isVerticalScrollBarEnabled = true
+        }
+
+        val scrollContent = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        // Empty state
+        emptyStateText = TextView(context).apply {
+            text = "📋 Copy text anywhere to track it here"
+            setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            gravity = Gravity.CENTER
+            val pad = dp(24)
+            setPadding(0, pad, 0, pad)
+            visibility = View.GONE
+        }
+        scrollContent.addView(emptyStateText)
+
+        // History list
+        historyContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        scrollContent.addView(historyContainer)
+
+        // Saved list (hidden by default)
+        savedContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            visibility = View.GONE
+        }
+        scrollContent.addView(savedContainer)
+
+        scrollView.addView(scrollContent)
+        panel.addView(scrollView)
+
+        this.panel = panel
+
+        // Start clipboard listener
+        startClipboardListener()
+
+        return panel
+    }
+
+    // ─── Header ──────────────────────────────────────────────────
+
+    private fun createHeader(): LinearLayout {
+        val header = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(30))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(32))
             gravity = Gravity.CENTER_VERTICAL
         }
 
-        headerRow.addView(ImageView(context).apply {
+        header.addView(ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(dp(16), dp(16))
             setImageResource(R.drawable.ic_clipboard)
             scaleType = ImageView.ScaleType.FIT_CENTER
         })
 
-        headerRow.addView(TextView(context).apply {
+        header.addView(TextView(context).apply {
             text = "  CLIPBOARD"
             setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
@@ -84,131 +174,124 @@ class ClipboardPanel(
             gravity = Gravity.CENTER_VERTICAL
         })
 
-        // Hold-to-save icon (long press 5s to save latest clip)
-        val holdToSaveContainer = FrameLayout(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(8) }
-        }
-        val holdToSaveIcon = TextView(context).apply {
-            text = "⭐"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            gravity = Gravity.CENTER
-            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-        }
-        val holdProgressBg = View(context).apply {
-            layoutParams = FrameLayout.LayoutParams(0, FrameLayout.LayoutParams.MATCH_PARENT)
-            setBackgroundColor(Color.parseColor("#33FF9F0A"))
-            visibility = View.GONE
-        }
-        holdToSaveContainer.addView(holdProgressBg)
-        holdToSaveContainer.addView(holdToSaveIcon)
-        holdProgressView = holdProgressBg
-
-        holdToSaveContainer.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    // Start fill animation over 5 seconds
-                    holdProgressBg.visibility = View.VISIBLE
-                    holdProgressBg.scaleX = 0f
-                    holdProgressBg.layoutParams = FrameLayout.LayoutParams(dp(28), FrameLayout.LayoutParams.MATCH_PARENT)
-                    holdProgressBg.animate().scaleX(1f).setDuration(5000).start()
-
-                    holdToSaveRunnable = Runnable {
-                        saveLatestClip()
-                        holdProgressBg.visibility = View.GONE
-                        holdProgressBg.animate().cancel()
-                        holdProgressBg.scaleX = 0f
-                    }
-                    mainHandler.postDelayed(holdToSaveRunnable!!, 5000)
-                    true
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    holdToSaveRunnable?.let { mainHandler.removeCallbacks(it) }
-                    holdToSaveRunnable = null
-                    holdProgressBg.animate().cancel()
-                    holdProgressBg.animate().scaleX(0f).setDuration(200).withEndAction {
-                        holdProgressBg.visibility = View.GONE
-                    }.start()
-                    true
-                }
-                else -> false
-            }
-        }
-        headerRow.addView(holdToSaveContainer)
-
-        headerRow.addView(TextView(context).apply {
-            text = "Clear All"
-            setTextColor(Color.parseColor(Colors.ACCENT_RED))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER_VERTICAL or Gravity.END
-            setOnClickListener {
-                repository.clearHistory()
-                refreshPanel()
-            }
+        // Clear button
+        header.addView(textButton("Clear") {
+            if (showingSaved) repository.clearSaved() else repository.clearHistory()
+            refreshList()
         })
 
-        headerRow.addView(ImageView(context).apply {
+        // Close button
+        header.addView(ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginStart = dp(8) }
             setImageResource(R.drawable.ic_close)
+            setColorFilter(Color.parseColor(Colors.TEXT_TERTIARY))
             scaleType = ImageView.ScaleType.FIT_CENTER
             setOnClickListener {
-                panel.visibility = View.GONE
+                panel?.visibility = View.GONE
                 onShowKeyboard()
             }
         })
 
-        panel.addView(headerRow)
+        return header
+    }
 
-        // Scroll content
-        val scrollView = ScrollView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
-        }
+    // ─── Search Bar ──────────────────────────────────────────────
 
-        val scrollContent = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        }
-
-        clipboardListContainer = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        }
-        scrollContent.addView(clipboardListContainer)
-
-        // Saved clips header
-        val savedHeader = LinearLayout(context).apply {
+    private fun createSearchBar(): LinearLayout {
+        val container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(24)).apply { topMargin = dp(8) }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(32)
+            ).apply { bottomMargin = dp(6) }
             gravity = Gravity.CENTER_VERTICAL
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor(Colors.BG_KEY))
+                cornerRadius = dp(8).toFloat()
+            }
+            val pad = dp(8)
+            setPadding(pad, 0, pad, 0)
         }
-        savedHeader.addView(TextView(context).apply {
-            text = "⭐ SAVED CLIPS"
-            setTextColor(Color.parseColor(Colors.ACCENT_ORANGE))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
-            typeface = Typeface.DEFAULT_BOLD
-            letterSpacing = 0.05f
+
+        container.addView(ImageView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
+            setImageResource(R.drawable.ic_search)
+            setColorFilter(Color.parseColor(Colors.TEXT_TERTIARY))
+            scaleType = ImageView.ScaleType.FIT_CENTER
         })
-        scrollContent.addView(savedHeader)
 
-        savedClipboardListContainer = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        searchInput = EditText(context).apply {
+            hint = "Search clips..."
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setBackgroundResource(0)
+            isSingleLine = true
+            imeOptions = EditorInfo.IME_ACTION_DONE
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            val pad = dp(6)
+            setPadding(pad, 0, 0, 0)
         }
-        scrollContent.addView(savedClipboardListContainer)
+        searchInput?.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                searchQuery = s?.toString() ?: ""
+                refreshList()
+            }
+        })
+        container.addView(searchInput)
 
-        scrollView.addView(scrollContent)
-        panel.addView(scrollView)
+        return container
+    }
 
-        this.panel = panel
-        loadInitialClipboard()
-        return panel
+    // ─── Tab Row ─────────────────────────────────────────────────
+
+    private fun createTabRow(): LinearLayout {
+        val tabRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(28)
+            ).apply { bottomMargin = dp(6) }
+        }
+
+        historyTab = tabButton("📋 History", true) {
+            showingSaved = false
+            updateTabStyles()
+            refreshList()
+        }
+        historyCountBadge = countBadge()
+        val historyTabContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+        }
+        historyTabContainer.addView(historyTab)
+        historyTabContainer.addView(historyCountBadge)
+        tabRow.addView(historyTabContainer)
+
+        savedTab = tabButton("⭐ Saved", false) {
+            showingSaved = true
+            updateTabStyles()
+            refreshList()
+        }
+        savedCountBadge = countBadge()
+        val savedTabContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+        }
+        savedTabContainer.addView(savedTab)
+        savedTabContainer.addView(savedCountBadge)
+        tabRow.addView(savedTabContainer)
+
+        return tabRow
     }
 
     // ─── Panel Visibility ────────────────────────────────────────
 
     fun show() {
-        loadInitialClipboard()
         panel?.visibility = View.VISIBLE
+        refreshList()
     }
 
     fun hide() {
@@ -218,160 +301,193 @@ class ClipboardPanel(
     val isVisible: Boolean
         get() = panel?.visibility == View.VISIBLE
 
-    // ─── Clipboard Tracking ──────────────────────────────────────
+    // ─── Clipboard Listener ──────────────────────────────────────
+
+    private fun startClipboardListener() {
+        clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
+            val clip = clipboardManager?.primaryClip
+            if (clip != null && clip.itemCount > 0) {
+                val text = clip.getItemAt(0).text?.toString()
+                if (!text.isNullOrEmpty()) {
+                    mainHandler.post {
+                        if (repository.addToHistory(text)) {
+                            refreshList()
+                        }
+                    }
+                }
+            }
+        }
+        clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
+    }
+
+    fun stopClipboardListener() {
+        clipboardListener?.let { clipboardManager?.removePrimaryClipChangedListener(it) }
+        clipboardListener = null
+    }
+
+    // ─── Clipboard Tracking (legacy compat) ──────────────────────
 
     fun onClipboardChanged(text: String) {
         if (repository.addToHistory(text)) {
-            if (isVisible) refreshPanel()
+            if (isVisible) refreshList()
         }
     }
 
-    /**
-     * Save the most recent clipboard history item to saved clips.
-     * Called when user long-presses the ⭐ icon in the header for 5 seconds.
-     */
-    private fun saveLatestClip() {
-        val latest = repository.history.firstOrNull()
-        if (latest != null) {
-            if (repository.saveClip(latest)) {
-                refreshPanel()
-                Toast.makeText(context, "⭐ Saved!", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "Already saved", Toast.LENGTH_SHORT).show()
-            }
+    // ─── Refresh ─────────────────────────────────────────────────
+
+    private fun refreshList() {
+        val historyClips = repository.searchHistory(searchQuery)
+        val savedClips = repository.searchSaved(searchQuery)
+
+        historyCountBadge?.text = "${repository.history.size}"
+        savedCountBadge?.text = "${repository.saved.size}"
+
+        if (showingSaved) {
+            historyContainer?.visibility = View.GONE
+            savedContainer?.visibility = View.VISIBLE
+            renderClipList(savedContainer, savedClips, isSaved = true)
+            emptyStateText?.visibility = if (savedClips.isEmpty()) View.VISIBLE else View.GONE
+            emptyStateText?.text = if (searchQuery.isNotEmpty()) "No saved clips match \"$searchQuery\""
+                else "⭐ Tap ★ on any clip to save it here"
         } else {
-            Toast.makeText(context, "No clips to save", Toast.LENGTH_SHORT).show()
+            historyContainer?.visibility = View.VISIBLE
+            savedContainer?.visibility = View.GONE
+            renderClipList(historyContainer, historyClips, isSaved = false)
+            emptyStateText?.visibility = if (historyClips.isEmpty()) View.VISIBLE else View.GONE
+            emptyStateText?.text = if (searchQuery.isNotEmpty()) "No history clips match \"$searchQuery\""
+                else "📋 Copy text anywhere to track it here"
         }
     }
 
-    // ─── Private ─────────────────────────────────────────────────
-
-    private fun loadInitialClipboard() {
-        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-        val clip = cm.primaryClip
-        if (clip != null && clip.itemCount > 0) {
-            val text = clip.getItemAt(0).text?.toString() ?: ""
-            if (text.isNotEmpty()) {
-                repository.addToHistory(text)
-            }
-        }
-        refreshPanel()
-    }
-
-    private fun refreshPanel() {
-        refreshClipList(clipboardListContainer, repository.history, isSaved = false)
-        refreshClipList(savedClipboardListContainer, repository.saved, isSaved = true)
-    }
-
-    private fun refreshClipList(container: LinearLayout?, clips: List<String>, isSaved: Boolean) {
+    private fun renderClipList(container: LinearLayout?, clips: List<String>, isSaved: Boolean) {
         container ?: return
         container.removeAllViews()
 
-        if (clips.isEmpty()) {
-            container.addView(TextView(context).apply {
-                text = if (isSaved) "Long press any clip to save it here"
-                else "No clips yet.\nCopy text anywhere to track it here."
-                setTextColor(Color.parseColor(if (isSaved) "#48484A" else Colors.TEXT_TERTIARY))
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, if (isSaved) 10f else 11f)
-                gravity = Gravity.CENTER
-                val pad = dp(if (isSaved) 8 else 12)
-                setPadding(0, pad, 0, pad)
-            })
-            return
-        }
-
         clips.forEachIndexed { index, clipText ->
-            val item = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                    bottomMargin = dp(4)
-                }
-                val pad = dp(10)
-                setPadding(pad, pad, pad, pad)
-                background = if (isSaved) {
-                    GradientDrawable().apply {
-                        setColor(Color.parseColor(Colors.SAVED_CLIP_BG))
-                        cornerRadius = dp(6).toFloat()
-                        setStroke(dp(1), Color.parseColor(Colors.SAVED_CLIP_BORDER))
-                    }
-                } else {
-                    GradientDrawable().apply {
-                        setColor(Color.parseColor(Colors.BG_KEY))
-                        cornerRadius = dp(6).toFloat()
-                    }
-                }
-                gravity = Gravity.CENTER_VERTICAL
-            }
-
-            if (isSaved) {
-                item.addView(TextView(context).apply {
-                    text = "⭐"
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
-                    setPadding(0, 0, dp(6), 0)
-                })
-            }
-
-            item.addView(TextView(context).apply {
-                text = clipText
-                setTextColor(Color.WHITE)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                typeface = Typeface.MONOSPACE
-                maxLines = 2
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            })
-
-            // Long press to save (only for history clips)
-            if (!isSaved) {
-                item.isLongClickable = true
-                item.setOnLongClickListener {
-                    if (repository.saveClip(clipText)) {
-                        refreshPanel()
-                        Toast.makeText(context, "⭐ Saved!", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "Already saved", Toast.LENGTH_SHORT).show()
-                    }
-                    true
-                }
-            }
-
-            // Paste button
-            val pasteContainer = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-                setPadding(dp(8), 0, 0, 0)
-                setOnClickListener {
-                    onPaste?.invoke(clipText)
-                    hide()
-                    onShowKeyboard()
-                }
-            }
-            pasteContainer.addView(ImageView(context).apply {
-                layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
-                setImageResource(R.drawable.ic_paste)
-                if (isSaved) setColorFilter(Color.parseColor(Colors.ACCENT_ORANGE))
-                scaleType = ImageView.ScaleType.FIT_CENTER
-            })
-            item.addView(pasteContainer)
-
-            // Delete button
-            val deleteContainer = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-                setPadding(dp(8), 0, 0, 0)
-                setOnClickListener {
-                    if (isSaved) repository.removeFromSaved(index) else repository.removeFromHistory(index)
-                    refreshPanel()
-                }
-            }
-            deleteContainer.addView(ImageView(context).apply {
-                layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
-                setImageResource(R.drawable.ic_close)
-                setColorFilter(Color.parseColor(Colors.TEXT_TERTIARY))
-                scaleType = ImageView.ScaleType.FIT_CENTER
-            })
-            item.addView(deleteContainer)
-
-            container.addView(item)
+            container.addView(createClipItem(clipText, index, isSaved))
         }
+    }
+
+    // ─── Clip Item ───────────────────────────────────────────────
+
+    private fun createClipItem(text: String, index: Int, isSaved: Boolean): LinearLayout {
+        val item = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(4) }
+            val pad = dp(10)
+            setPadding(pad, pad, pad, pad)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor(if (isSaved) Colors.SAVED_CLIP_BG else Colors.BG_KEY))
+                cornerRadius = dp(6).toFloat()
+                if (isSaved) setStroke(dp(1), Color.parseColor(Colors.SAVED_CLIP_BORDER))
+            }
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        // Clip text (truncated)
+        item.addView(TextView(context).apply {
+            this.text = text
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            typeface = Typeface.MONOSPACE
+            maxLines = 2
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+
+        // Save/Unsave button (★)
+        val isAlreadySaved = repository.isSaved(text)
+        item.addView(actionButton(
+            if (isSaved) "★" else if (isAlreadySaved) "★" else "☆",
+            if (isSaved || isAlreadySaved) Color.parseColor(Colors.ACCENT_ORANGE) else Color.parseColor(Colors.TEXT_TERTIARY)
+        ) {
+            if (isSaved) {
+                repository.removeFromSaved(index)
+            } else if (!isAlreadySaved) {
+                repository.saveClip(text)
+            }
+            refreshList()
+        })
+
+        // Paste button
+        item.addView(actionButton("📋", Color.parseColor(Colors.ACCENT_BLUE)) {
+            onPaste?.invoke(text)
+            hide()
+            onShowKeyboard()
+        })
+
+        // Delete button
+        item.addView(actionButton("✕", Color.parseColor(Colors.TEXT_TERTIARY)) {
+            if (isSaved) repository.removeFromSaved(index) else repository.removeFromHistory(index)
+            refreshList()
+        })
+
+        return item
+    }
+
+    // ─── UI Helpers ──────────────────────────────────────────────
+
+    private fun tabButton(label: String, selected: Boolean, onClick: () -> Unit): TextView {
+        return TextView(context).apply {
+            this.text = label
+            setTextColor(Color.parseColor(if (selected) Colors.ACCENT_BLUE else Colors.TEXT_TERTIARY))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            gravity = Gravity.CENTER_VERTICAL
+            setOnClickListener {
+                onClick()
+            }
+        }
+    }
+
+    private fun countBadge(): TextView {
+        return TextView(context).apply {
+            text = "0"
+            setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
+            setPadding(dp(4), 0, dp(8), 0)
+        }
+    }
+
+    private fun updateTabStyles() {
+        historyTab?.setTextColor(Color.parseColor(if (!showingSaved) Colors.ACCENT_BLUE else Colors.TEXT_TERTIARY))
+        historyTab?.typeface = if (!showingSaved) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        savedTab?.setTextColor(Color.parseColor(if (showingSaved) Colors.ACCENT_ORANGE else Colors.TEXT_TERTIARY))
+        savedTab?.typeface = if (showingSaved) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+    }
+
+    private fun textButton(label: String, onClick: () -> Unit): TextView {
+        return TextView(context).apply {
+            this.text = label
+            setTextColor(Color.parseColor(Colors.ACCENT_RED))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER_VERTICAL
+            setOnClickListener { onClick() }
+        }
+    }
+
+    private fun actionButton(symbol: String, color: Int, onClick: () -> Unit): LinearLayout {
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(6), 0, 0, 0)
+            setOnClickListener { onClick() }
+            addView(TextView(context).apply {
+                this.text = symbol
+                setTextColor(color)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                gravity = Gravity.CENTER
+            })
+        }
+    }
+
+    // ─── Cleanup ─────────────────────────────────────────────────
+
+    fun cleanup() {
+        stopClipboardListener()
     }
 }
