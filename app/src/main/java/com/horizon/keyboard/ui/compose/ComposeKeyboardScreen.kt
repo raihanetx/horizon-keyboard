@@ -1,4 +1,14 @@
-package com.horizon.keyboard
+package com.horizon.keyboard.ui.compose
+
+/**
+ * EXPERIMENTAL — Compose-based keyboard UI.
+ *
+ * This is an alternative implementation using Jetpack Compose.
+ * It is NOT used by the IME service ([com.horizon.keyboard.HorizonKeyboardService]).
+ * The actual keyboard uses the View-based system in [com.horizon.keyboard.KeyboardView].
+ *
+ * Kept as a reference/preview for potential future Compose migration.
+ */
 
 import android.content.Context
 import android.view.HapticFeedbackConstants

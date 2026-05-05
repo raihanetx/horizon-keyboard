@@ -1,4 +1,4 @@
-package com.horizon.keyboard
+package com.horizon.keyboard.ui.compose
 
 import android.content.Intent
 import android.os.Bundle

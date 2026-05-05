@@ -14,7 +14,7 @@
         tools:targetApi="34">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.setup.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.Horizon">
             <intent-filter>

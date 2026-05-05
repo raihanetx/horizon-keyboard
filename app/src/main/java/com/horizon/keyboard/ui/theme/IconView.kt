@@ -1,4 +1,4 @@
-package com.horizon.keyboard
+package com.horizon.keyboard.ui.theme
 
 import android.content.Context
 import android.graphics.Canvas
