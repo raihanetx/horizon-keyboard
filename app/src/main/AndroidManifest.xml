@@ -27,7 +27,8 @@
             android:name=".ui.setup.ApiKeyActivity"
             android:exported="false"
             android:theme="@style/Theme.Horizon"
-            android:label="API Key Settings" />
+            android:label="API Key Settings"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustResize" />
 
         <service
             android:name=".HorizonKeyboardService"

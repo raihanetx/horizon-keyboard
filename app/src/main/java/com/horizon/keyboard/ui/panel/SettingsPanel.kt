@@ -207,7 +207,9 @@ class SettingsPanel(
         panel.addView(sectionHeader("GROQ API KEY (WHISPER)"))
         val groqStatus = if (voiceEngine.groqApiKey.isNotEmpty()) "✓ Key saved (tap to edit)" else "Tap to add key..."
         panel.addView(settingsOption(groqStatus, voiceEngine.groqApiKey.isNotEmpty()) {
-            context.startActivity(Intent(context, ApiKeyActivity::class.java))
+            val intent = Intent(context, ApiKeyActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
         })
         panel.addView(TextView(context).apply {
             text = "🔒 Encrypted with Android Keystore · Free: 2,000 RPD"
@@ -220,7 +222,9 @@ class SettingsPanel(
         panel.addView(sectionHeader("GOOGLE AI STUDIO API KEY (GEMMA)"))
         val gemmaStatus = if (voiceEngine.gemmaApiKey.isNotEmpty()) "✓ Key saved (tap to edit)" else "Tap to add key..."
         panel.addView(settingsOption(gemmaStatus, voiceEngine.gemmaApiKey.isNotEmpty()) {
-            context.startActivity(Intent(context, ApiKeyActivity::class.java))
+            val intent = Intent(context, ApiKeyActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
         })
         panel.addView(TextView(context).apply {
             text = "🔒 Encrypted with Android Keystore · Free · Best for Bangla"

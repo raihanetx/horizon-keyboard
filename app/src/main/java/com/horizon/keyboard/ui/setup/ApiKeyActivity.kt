@@ -105,6 +105,13 @@ class ApiKeyActivity : Activity() {
 
         // Load existing keys
         loadKeys()
+
+        // Auto-focus first field and show system keyboard
+        groqKeyInput.requestFocus()
+        groqKeyInput.postDelayed({
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(groqKeyInput, InputMethodManager.SHOW_IMPLICIT)
+        }, 300)
     }
 
     private fun loadKeys() {
@@ -117,8 +124,8 @@ class ApiKeyActivity : Activity() {
             if (gemmaKey.isNotEmpty()) {
                 gemmaKeyInput.setText(gemmaKey)
             }
-        } catch (_: Exception) {
-            // Keys not yet stored
+        } catch (e: Exception) {
+            Toast.makeText(this, "Could not load existing keys: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -126,13 +133,27 @@ class ApiKeyActivity : Activity() {
         val groqKey = groqKeyInput.text.toString().trim()
         val gemmaKey = gemmaKeyInput.text.toString().trim()
 
+        if (groqKey.isEmpty() && gemmaKey.isEmpty()) {
+            Toast.makeText(this, "Enter at least one key", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         try {
             if (groqKey.isNotEmpty()) SecureKeyStore.setGroqKey(this, groqKey)
             if (gemmaKey.isNotEmpty()) SecureKeyStore.setGemmaKey(this, gemmaKey)
             Toast.makeText(this, "✓ Keys saved!", Toast.LENGTH_SHORT).show()
             finish()
         } catch (e: Exception) {
-            Toast.makeText(this, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
+            // Try fallback: delete corrupted prefs and retry
+            try {
+                getSharedPreferences("horizon_secure_keys", MODE_PRIVATE).edit().clear().apply()
+                if (groqKey.isNotEmpty()) SecureKeyStore.setGroqKey(this, groqKey)
+                if (gemmaKey.isNotEmpty()) SecureKeyStore.setGemmaKey(this, gemmaKey)
+                Toast.makeText(this, "✓ Keys saved! (storage reset)", Toast.LENGTH_SHORT).show()
+                finish()
+            } catch (e2: Exception) {
+                Toast.makeText(this, "Failed to save: ${e2.message}", Toast.LENGTH_LONG).show()
+            }
         }
     }
 

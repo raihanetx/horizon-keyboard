@@ -28,9 +28,7 @@ object SecureKeyStore {
      * Thread-safe via lazy initialization.
      */
     fun init(context: Context): SharedPreferences {
-        return prefs ?: synchronized(this) {
-            prefs ?: createEncryptedPrefs(context.applicationContext).also { prefs = it }
-        }
+        return getOrCreatePrefs(context)
     }
 
     private fun createEncryptedPrefs(context: Context): SharedPreferences {
@@ -45,6 +43,28 @@ object SecureKeyStore {
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
+    }
+
+    /**
+     * Try to create encrypted prefs. If it fails (corrupted keystore, MIUI issues, etc.),
+     * delete the corrupted file and retry once.
+     */
+    private fun getOrCreatePrefs(context: Context): SharedPreferences {
+        prefs?.let { return it }
+        return synchronized(this) {
+            prefs?.let { return it }
+            try {
+                createEncryptedPrefs(context.applicationContext).also { prefs = it }
+            } catch (e: Exception) {
+                // Corrupted prefs — delete and retry
+                try {
+                    context.applicationContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+                        .edit().clear().apply()
+                    context.applicationContext.deleteSharedPreferences(PREFS_FILE)
+                } catch (_: Exception) {}
+                createEncryptedPrefs(context.applicationContext).also { prefs = it }
+            }
+        }
     }
 
     // ─── Key Storage API ─────────────────────────────────────────
