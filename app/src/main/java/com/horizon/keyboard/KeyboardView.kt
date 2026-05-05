@@ -115,7 +115,11 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     }
     private val voiceManager = KeyboardVoiceManager(
         context, voiceEngine, settingsPanel,
-        onKeyPress, onBackspace, onEnter, onSpace, onArrowKey
+        onKeyPress = { onKeyPress?.invoke(it) },
+        onBackspace = { onBackspace?.invoke() },
+        onEnter = { onEnter?.invoke() },
+        onSpace = { onSpace?.invoke() },
+        onArrowKey = { onArrowKey?.invoke(it) }
     )
 
     // ─── Init ────────────────────────────────────────────────────

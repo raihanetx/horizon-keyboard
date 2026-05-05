@@ -78,7 +78,7 @@ object WhisperApi {
 
         // Read response
         val responseCode = connection.responseCode
-        when {
+        return when {
             responseCode == 200 -> {
                 connection.inputStream.bufferedReader().readText().trim()
             }

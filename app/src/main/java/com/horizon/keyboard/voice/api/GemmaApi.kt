@@ -58,7 +58,7 @@ object GemmaApi {
         connection.outputStream.use { os -> os.write(jsonBody.toByteArray()) }
 
         val responseCode = connection.responseCode
-        when {
+        return when {
             responseCode == 200 -> {
                 parseTranscriptionResult(connection.inputStream.bufferedReader().readText())
             }

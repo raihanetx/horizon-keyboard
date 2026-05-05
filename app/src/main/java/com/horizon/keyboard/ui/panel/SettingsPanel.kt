@@ -1,13 +1,16 @@
 package com.horizon.keyboard.ui.panel
 
+import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.util.Log
 import android.graphics.drawable.GradientDrawable
+import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -324,6 +327,11 @@ class SettingsPanel(
                 cornerRadius = dp(6).toFloat()
                 setStroke(dp(1), Color.parseColor(Colors.BG_PILL))
             }
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                showApiKeyDialog(hint, onTextChanged)
+            }
         }
 
         container.addView(TextView(context).apply {
@@ -335,6 +343,37 @@ class SettingsPanel(
             gravity = Gravity.CENTER_VERTICAL
         })
 
+        // Tap indicator
+        container.addView(ImageView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
+            setImageResource(R.drawable.ic_settings)
+            setColorFilter(Color.parseColor(Colors.TEXT_TERTIARY))
+            scaleType = ImageView.ScaleType.FIT_CENTER
+        })
+
         return container
+    }
+
+    private fun showApiKeyDialog(currentHint: String, onResult: (String) -> Unit) {
+        val input = EditText(context).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            setHint("Paste API key here...")
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
+        }
+
+        AlertDialog.Builder(context)
+            .setTitle("Enter API Key")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val key = input.text.toString().trim()
+                if (key.isNotEmpty()) {
+                    onResult(key)
+                    refreshPanel()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 }
