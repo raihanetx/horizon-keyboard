@@ -3,6 +3,7 @@ package com.horizon.keyboard.ui.panel
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
+import android.util.Log
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
@@ -12,13 +13,15 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import com.horizon.keyboard.KeyboardTheme
 import com.horizon.keyboard.R
-import com.horizon.keyboard.VoiceLanguage
+import com.horizon.keyboard.voice.VoiceLanguage
 import com.horizon.keyboard.VoiceTranscriptionEngine
+import com.horizon.keyboard.core.VoiceEngineType
 import com.horizon.keyboard.data.KeyboardPreferences
 import com.horizon.keyboard.data.SecureKeyStore
 import com.horizon.keyboard.ui.theme.Dimensions
+import com.horizon.keyboard.ui.theme.Colors
+
 
 /**
  * Settings panel UI — voice engine selection, language, API keys, model selection.
@@ -35,8 +38,6 @@ class SettingsPanel(
     private val onShowKeyboard: () -> Unit = {}
 ) {
 
-    enum class VoiceEngineType { ANDROID_BUILTIN, WHISPER_GROQ, GEMMA_API, AUTO }
-
     var voiceEngineType = VoiceEngineType.ANDROID_BUILTIN
     var selectedLanguage = VoiceLanguage.ENGLISH
 
@@ -45,14 +46,14 @@ class SettingsPanel(
     var panel: ScrollView? = null
         private set
 
-    private fun dp(value: Int): Int = KeyboardTheme.dp(context, value)
+    private fun dp(value: Int): Int = Dimensions.dp(context, value)
 
     // ─── Panel Creation ──────────────────────────────────────────
 
     fun createPanel(): ScrollView {
         val scrollView = ScrollView(context).apply {
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(260))
-            setBackgroundColor(Color.parseColor(KeyboardTheme.BG_DARK))
+            setBackgroundColor(Color.parseColor(Colors.BG_DARK))
             visibility = View.GONE
         }
 
@@ -84,6 +85,10 @@ class SettingsPanel(
 
     // ─── Settings Persistence ────────────────────────────────────
 
+    /** Last error message from load/save operations, or null if successful. */
+    var lastError: String? = null
+        private set
+
     fun loadSettings() {
         try {
             voiceEngineType = when (prefs.voiceEngine) {
@@ -98,11 +103,16 @@ class SettingsPanel(
             voiceEngine.gemmaModelBn = prefs.gemmaModelBn
             selectedLanguage = VoiceLanguage.fromName(prefs.selectedLanguage)
             voiceEngine.currentVoiceLang = selectedLanguage.gemmaCode
-        } catch (_: Exception) {}
+            lastError = null
+        } catch (e: Exception) {
+            Log.e("SettingsPanel", "Failed to load settings", e)
+            lastError = "Failed to load settings: ${e.message}"
+        }
     }
 
-    fun saveSettings() {
-        try {
+    /** @return true if settings were saved successfully, false on error. */
+    fun saveSettings(): Boolean {
+        return try {
             prefs.voiceEngine = when (voiceEngineType) {
                 VoiceEngineType.WHISPER_GROQ -> KeyboardPreferences.ENGINE_WHISPER_GROQ
                 VoiceEngineType.GEMMA_API -> KeyboardPreferences.ENGINE_GEMMA
@@ -114,7 +124,13 @@ class SettingsPanel(
             prefs.selectedLanguage = selectedLanguage.name
             if (voiceEngine.groqApiKey.isNotEmpty()) SecureKeyStore.setGroqKey(context, voiceEngine.groqApiKey)
             if (voiceEngine.gemmaApiKey.isNotEmpty()) SecureKeyStore.setGemmaKey(context, voiceEngine.gemmaApiKey)
-        } catch (_: Exception) {}
+            lastError = null
+            true
+        } catch (e: Exception) {
+            Log.e("SettingsPanel", "Failed to save settings", e)
+            lastError = "Failed to save settings: ${e.message}"
+            false
+        }
     }
 
     // ─── Panel Refresh ───────────────────────────────────────────
@@ -137,7 +153,7 @@ class SettingsPanel(
         })
         titleRow.addView(TextView(context).apply {
             text = "  SETTINGS"
-            setTextColor(Color.parseColor(KeyboardTheme.TEXT_SECONDARY))
+            setTextColor(Color.parseColor(Colors.TEXT_SECONDARY))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             typeface = Typeface.DEFAULT_BOLD
             letterSpacing = 0.05f
@@ -194,7 +210,7 @@ class SettingsPanel(
             })
             panel.addView(TextView(context).apply {
                 text = "🔒 Encrypted with Android Keystore · Free: 2,000 RPD"
-                setTextColor(Color.parseColor(KeyboardTheme.TEXT_TERTIARY))
+                setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
                 setPadding(dp(10), 0, 0, dp(4))
             })
@@ -210,7 +226,7 @@ class SettingsPanel(
             })
             panel.addView(TextView(context).apply {
                 text = "🔒 Encrypted with Android Keystore · Free · Best for Bangla"
-                setTextColor(Color.parseColor(KeyboardTheme.TEXT_TERTIARY))
+                setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
                 setPadding(dp(10), 0, 0, dp(4))
             })
@@ -247,12 +263,12 @@ class SettingsPanel(
         closeRow.addView(ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
             setImageResource(R.drawable.ic_close)
-            setColorFilter(Color.parseColor(KeyboardTheme.TEXT_TERTIARY))
+            setColorFilter(Color.parseColor(Colors.TEXT_TERTIARY))
             scaleType = ImageView.ScaleType.FIT_CENTER
         })
         closeRow.addView(TextView(context).apply {
             text = " Close"
-            setTextColor(Color.parseColor(KeyboardTheme.TEXT_TERTIARY))
+            setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
         })
         panel.addView(closeRow)
@@ -263,7 +279,7 @@ class SettingsPanel(
     private fun sectionHeader(title: String): TextView {
         return TextView(context).apply {
             text = title
-            setTextColor(Color.parseColor(KeyboardTheme.ACCENT_ORANGE))
+            setTextColor(Color.parseColor(Colors.ACCENT_ORANGE))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
             typeface = Typeface.DEFAULT_BOLD
             letterSpacing = 0.05f
@@ -279,16 +295,16 @@ class SettingsPanel(
             val pad = dp(10)
             setPadding(pad, 0, pad, 0)
             background = GradientDrawable().apply {
-                setColor(Color.parseColor(if (selected) KeyboardTheme.SETTINGS_SELECTED_BG else KeyboardTheme.BG_KEY))
+                setColor(Color.parseColor(if (selected) Colors.SETTINGS_SELECTED_BG else Colors.BG_KEY))
                 cornerRadius = dp(6).toFloat()
-                if (selected) setStroke(dp(1), Color.parseColor(KeyboardTheme.SETTINGS_SELECTED_BORDER))
+                if (selected) setStroke(dp(1), Color.parseColor(Colors.SETTINGS_SELECTED_BORDER))
             }
             setOnClickListener { onClick() }
         }
 
         container.addView(TextView(context).apply {
             text = if (selected) "● $label" else "   $label"
-            setTextColor(Color.parseColor(if (selected) KeyboardTheme.ACCENT_BLUE else KeyboardTheme.TEXT_SECONDARY))
+            setTextColor(Color.parseColor(if (selected) Colors.ACCENT_BLUE else Colors.TEXT_SECONDARY))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         })
@@ -304,15 +320,15 @@ class SettingsPanel(
             val pad = dp(10)
             setPadding(pad, 0, pad, 0)
             background = GradientDrawable().apply {
-                setColor(Color.parseColor(KeyboardTheme.BG_KEY))
+                setColor(Color.parseColor(Colors.BG_KEY))
                 cornerRadius = dp(6).toFloat()
-                setStroke(dp(1), Color.parseColor(KeyboardTheme.BG_PILL))
+                setStroke(dp(1), Color.parseColor(Colors.BG_PILL))
             }
         }
 
         container.addView(TextView(context).apply {
             text = if (hint.length > 8) "${hint.take(4)}...${hint.takeLast(4)}" else hint
-            setTextColor(Color.parseColor(if (hint.length > 8) KeyboardTheme.TEXT_SECONDARY else KeyboardTheme.TEXT_TERTIARY))
+            setTextColor(Color.parseColor(if (hint.length > 8) Colors.TEXT_SECONDARY else Colors.TEXT_TERTIARY))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             typeface = Typeface.MONOSPACE
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)

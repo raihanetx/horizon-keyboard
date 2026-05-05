@@ -1,4 +1,4 @@
-package com.horizon.keyboard
+package com.horizon.keyboard.voice
 
 /**
  * Supported voice languages: English and Bangla only.

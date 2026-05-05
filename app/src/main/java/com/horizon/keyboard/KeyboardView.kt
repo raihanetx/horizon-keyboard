@@ -19,6 +19,10 @@ import com.horizon.keyboard.ui.keyboard.SymbolPanel
 import com.horizon.keyboard.ui.panel.ClipboardPanel
 import com.horizon.keyboard.ui.panel.PanelHost
 import com.horizon.keyboard.ui.panel.SettingsPanel
+import com.horizon.keyboard.ui.theme.Colors
+import com.horizon.keyboard.ui.theme.Drawables
+import com.horizon.keyboard.ui.theme.Dimensions
+
 
 /**
  * Horizon Keyboard — Core keyboard layout coordinator.
@@ -118,8 +122,8 @@ class KeyboardView(context: Context) : LinearLayout(context) {
 
     init {
         orientation = VERTICAL
-        setBackgroundColor(Color.parseColor(KeyboardTheme.BG_DARK))
-        val p = KeyboardTheme.dp(context, 6)
+        setBackgroundColor(Color.parseColor(Colors.BG_DARK))
+        val p = Dimensions.dp(context, 6)
         setPadding(p, p, p, p)
         settingsPanel.loadSettings()
         voiceManager.setupVoiceEngineCallbacks()
@@ -199,8 +203,8 @@ class KeyboardView(context: Context) : LinearLayout(context) {
 
     private fun createHeaderVoiceSlot(): FrameLayout {
         val slot = FrameLayout(context).apply {
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, KeyboardTheme.dp(context, 40)).apply {
-                bottomMargin = KeyboardTheme.dp(context, 4)
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, Dimensions.dp(context, 40)).apply {
+                bottomMargin = Dimensions.dp(context, 4)
             }
         }
 
@@ -228,7 +232,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         }
         shiftKeys.forEach { tv ->
             val actualView = tv.tag as? LinearLayout ?: return@forEach
-            actualView.background = if (isShift) KeyboardTheme.keyBgSolid(KeyboardTheme.ACCENT_BLUE) else KeyboardTheme.keyBgSolid(KeyboardTheme.BG_KEY_SOLID)
+            actualView.background = if (isShift) Drawables.keyBgSolid(Colors.ACCENT_BLUE) else Drawables.keyBgSolid(Colors.BG_KEY_SOLID)
         }
     }
 }

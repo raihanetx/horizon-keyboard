@@ -4,12 +4,14 @@ import android.content.Context
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import com.horizon.keyboard.core.KeyboardMode
 
 /**
  * Manages which panel is visible at any time.
  *
  * Panels: keyboard | symbol | clipboard | settings
  * Only one panel is visible at a time — transitions are explicit.
+ * Tracks current mode via [currentMode] for state-driven logic.
  */
 class PanelHost(private val context: Context) {
 
@@ -28,9 +30,14 @@ class PanelHost(private val context: Context) {
     /** Callback when keyboard should be shown (e.g. panel closed). */
     var onShowKeyboard: (() -> Unit)? = null
 
+    /** The current keyboard mode — drives all state decisions. */
+    var currentMode: KeyboardMode = KeyboardMode.Typing
+        private set
+
     // ─── Panel Switching ─────────────────────────────────────────
 
     fun showKeyboard() {
+        currentMode = KeyboardMode.Typing
         keyboardPanel?.visibility = View.VISIBLE
         symbolPanel?.visibility = View.GONE
         clipboardPanel?.visibility = View.GONE
@@ -38,6 +45,7 @@ class PanelHost(private val context: Context) {
     }
 
     fun showSymbol() {
+        currentMode = KeyboardMode.Symbol
         keyboardPanel?.visibility = View.GONE
         symbolPanel?.visibility = View.VISIBLE
         clipboardPanel?.visibility = View.GONE
@@ -45,6 +53,7 @@ class PanelHost(private val context: Context) {
     }
 
     fun showClipboard() {
+        currentMode = KeyboardMode.Clipboard
         keyboardPanel?.visibility = View.GONE
         symbolPanel?.visibility = View.GONE
         clipboardPanel?.visibility = View.VISIBLE
@@ -52,6 +61,7 @@ class PanelHost(private val context: Context) {
     }
 
     fun showSettings() {
+        currentMode = KeyboardMode.Settings
         keyboardPanel?.visibility = View.GONE
         symbolPanel?.visibility = View.GONE
         clipboardPanel?.visibility = View.GONE
@@ -61,7 +71,7 @@ class PanelHost(private val context: Context) {
     // ─── Toggle Methods ──────────────────────────────────────────
 
     fun toggleClipboard() {
-        if (clipboardPanel?.visibility == View.VISIBLE) {
+        if (currentMode is KeyboardMode.Clipboard) {
             showKeyboard()
         } else {
             showClipboard()
@@ -69,7 +79,7 @@ class PanelHost(private val context: Context) {
     }
 
     fun toggleSettings() {
-        if (settingsPanel?.visibility == View.VISIBLE) {
+        if (currentMode is KeyboardMode.Settings) {
             showKeyboard()
         } else {
             showSettings()
@@ -77,10 +87,18 @@ class PanelHost(private val context: Context) {
     }
 
     fun toggleSymbol() {
-        if (symbolPanel?.visibility == View.VISIBLE) {
+        if (currentMode is KeyboardMode.Symbol) {
             showKeyboard()
         } else {
             showSymbol()
         }
     }
+
+    // ─── Mode Queries ────────────────────────────────────────────
+
+    val isTyping: Boolean get() = currentMode is KeyboardMode.Typing
+    val isSymbol: Boolean get() = currentMode is KeyboardMode.Symbol
+    val isClipboard: Boolean get() = currentMode is KeyboardMode.Clipboard
+    val isSettings: Boolean get() = currentMode is KeyboardMode.Settings
+    val isVoice: Boolean get() = currentMode is KeyboardMode.Voice
 }

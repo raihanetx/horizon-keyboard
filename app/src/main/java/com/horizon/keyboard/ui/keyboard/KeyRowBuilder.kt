@@ -4,8 +4,9 @@ import android.content.Context
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
-import com.horizon.keyboard.KeyboardTheme
 import com.horizon.keyboard.R
+import com.horizon.keyboard.ui.theme.Dimensions
+
 
 /**
  * Builds keyboard row layouts (number row, letter rows, bottom row).
@@ -35,9 +36,9 @@ class KeyRowBuilder(
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                KeyboardTheme.dp(context, 44)
+                Dimensions.dp(context, 44)
             ).apply {
-                bottomMargin = KeyboardTheme.dp(context, 5)
+                bottomMargin = Dimensions.dp(context, 5)
             }
             gravity = Gravity.CENTER_VERTICAL
         }

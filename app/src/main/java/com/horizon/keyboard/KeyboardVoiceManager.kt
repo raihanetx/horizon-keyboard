@@ -10,6 +10,9 @@ import com.horizon.keyboard.ui.panel.SettingsPanel
 import com.horizon.keyboard.voice.VoiceEngineRouter
 import com.horizon.keyboard.voice.VoiceSessionManager
 import com.horizon.keyboard.voice.VoiceCommandProcessor
+import com.horizon.keyboard.ui.theme.Colors
+import com.horizon.keyboard.voice.VoiceLanguage
+
 
 /**
  * Voice recognition coordinator — wires together voice UI, engine routing, and session management.
@@ -60,7 +63,7 @@ class KeyboardVoiceManager(
         },
         onPartial = { partial -> voiceBar.updateStatus(partial) },
         onStatusChange = { message, listening ->
-            voiceBar.updateStatus(message, if (listening) KeyboardTheme.ACCENT_GREEN else KeyboardTheme.TEXT_DIM)
+            voiceBar.updateStatus(message, if (listening) Colors.ACCENT_GREEN else Colors.TEXT_DIM)
             voiceBar.updateListeningState(listening)
         },
         isStopped = { userStoppedListening }

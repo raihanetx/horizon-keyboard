@@ -1,8 +1,8 @@
 package com.horizon.keyboard.voice
 
-import com.horizon.keyboard.VoiceLanguage
+import com.horizon.keyboard.voice.VoiceLanguage
 import com.horizon.keyboard.VoiceTranscriptionEngine
-import com.horizon.keyboard.ui.panel.SettingsPanel
+import com.horizon.keyboard.core.VoiceEngineType
 
 /**
  * Routes voice recording to the correct engine based on settings, language, and API key availability.
@@ -19,7 +19,7 @@ import com.horizon.keyboard.ui.panel.SettingsPanel
  */
 class VoiceEngineRouter(
     private val voiceEngine: VoiceTranscriptionEngine,
-    private val getEngineType: () -> SettingsPanel.VoiceEngineType,
+    private val getEngineType: () -> VoiceEngineType,
     private val getCurrentLang: () -> String
 ) {
 
@@ -38,20 +38,20 @@ class VoiceEngineRouter(
         val lang = getCurrentLang()
 
         return when (engineType) {
-            SettingsPanel.VoiceEngineType.GEMMA_API -> {
+            VoiceEngineType.GEMMA_API -> {
                 if (voiceEngine.gemmaApiKey.isNotEmpty()) Engine.GEMMA else Engine.ANDROID
             }
-            SettingsPanel.VoiceEngineType.WHISPER_GROQ -> {
+            VoiceEngineType.WHISPER_GROQ -> {
                 if (voiceEngine.groqApiKey.isNotEmpty()) Engine.WHISPER else Engine.ANDROID
             }
-            SettingsPanel.VoiceEngineType.AUTO -> {
+            VoiceEngineType.AUTO -> {
                 when {
                     lang == VoiceLanguage.BANGLA.gemmaCode && voiceEngine.gemmaApiKey.isNotEmpty() -> Engine.GEMMA
                     voiceEngine.groqApiKey.isNotEmpty() -> Engine.WHISPER
                     else -> Engine.ANDROID
                 }
             }
-            SettingsPanel.VoiceEngineType.ANDROID_BUILTIN -> Engine.ANDROID
+            VoiceEngineType.ANDROID_BUILTIN -> Engine.ANDROID
         }
     }
 

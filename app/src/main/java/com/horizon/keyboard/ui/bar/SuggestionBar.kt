@@ -9,7 +9,9 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.horizon.keyboard.KeyboardTheme
+import com.horizon.keyboard.ui.theme.Colors
+import com.horizon.keyboard.ui.theme.Dimensions
+
 
 /**
  * Word suggestion bar displayed above the keyboard rows.
@@ -37,12 +39,12 @@ class SuggestionBar(
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                KeyboardTheme.dp(context, 40)
+                Dimensions.dp(context, 40)
             ).apply {
-                bottomMargin = KeyboardTheme.dp(context, 4)
+                bottomMargin = Dimensions.dp(context, 4)
             }
             setBackgroundColor(Color.parseColor("#1E1E20"))
-            val p = KeyboardTheme.dp(context, 6)
+            val p = Dimensions.dp(context, 6)
             setPadding(p, 0, p, 0)
             gravity = Gravity.CENTER_VERTICAL
         }
@@ -56,15 +58,15 @@ class SuggestionBar(
                         (v as TextView).apply {
                             setTextColor(Color.WHITE)
                             background = GradientDrawable().apply {
-                                setColor(Color.parseColor(KeyboardTheme.BG_PILL))
-                                cornerRadius = KeyboardTheme.dp(context, 6).toFloat()
+                                setColor(Color.parseColor(Colors.BG_PILL))
+                                cornerRadius = Dimensions.dp(context, 6).toFloat()
                             }
                         }
                         true
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         (v as TextView).apply {
-                            setTextColor(Color.parseColor(KeyboardTheme.TEXT_SECONDARY))
+                            setTextColor(Color.parseColor(Colors.TEXT_SECONDARY))
                             background = null
                         }
                         if (event.action == MotionEvent.ACTION_UP) {
@@ -90,7 +92,7 @@ class SuggestionBar(
     private fun createWordView(word: String): TextView {
         return TextView(context).apply {
             text = word
-            setTextColor(Color.parseColor(KeyboardTheme.TEXT_SECONDARY))
+            setTextColor(Color.parseColor(Colors.TEXT_SECONDARY))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -101,10 +103,10 @@ class SuggestionBar(
     private fun createDivider(): android.view.View {
         return android.view.View(context).apply {
             layoutParams = LinearLayout.LayoutParams(
-                KeyboardTheme.dp(context, 1),
-                KeyboardTheme.dp(context, 22)
+                Dimensions.dp(context, 1),
+                Dimensions.dp(context, 22)
             )
-            setBackgroundColor(Color.parseColor(KeyboardTheme.DIVIDER))
+            setBackgroundColor(Color.parseColor(Colors.DIVIDER))
         }
     }
 }

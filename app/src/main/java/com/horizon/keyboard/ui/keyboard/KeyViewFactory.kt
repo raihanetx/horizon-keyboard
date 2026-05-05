@@ -18,7 +18,10 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.horizon.keyboard.R
-import com.horizon.keyboard.KeyboardTheme
+import com.horizon.keyboard.ui.theme.Colors
+import com.horizon.keyboard.ui.theme.Drawables
+import com.horizon.keyboard.ui.theme.Dimensions
+
 
 /**
  * Factory for creating keyboard key views.
@@ -70,7 +73,7 @@ class KeyViewFactory(
             setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
             gravity = Gravity.CENTER
             typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-            background = KeyboardTheme.keyBgNormal()
+            background = Drawables.keyBgNormal()
         }
     }
 
@@ -79,9 +82,9 @@ class KeyViewFactory(
     @SuppressLint("ClickableViewAccessibility")
     fun addKey(row: LinearLayout, label: String, textSize: Float = 18f) {
         val tv = createKeyView(label, textSize)
-        tv.layoutParams = LinearLayout.LayoutParams(0, KeyboardTheme.dp(context, 44), 1f).apply {
-            marginStart = KeyboardTheme.dp(context, 3)
-            marginEnd = KeyboardTheme.dp(context, 3)
+        tv.layoutParams = LinearLayout.LayoutParams(0, Dimensions.dp(context, 44), 1f).apply {
+            marginStart = Dimensions.dp(context, 3)
+            marginEnd = Dimensions.dp(context, 3)
         }
 
         if (label[0].isLetter()) allLetterKeys.add(tv)
@@ -92,12 +95,12 @@ class KeyViewFactory(
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    (v as TextView).apply { setTextColor(Color.WHITE); background = KeyboardTheme.keyBgPressed() }
+                    (v as TextView).apply { setTextColor(Color.WHITE); background = Drawables.keyBgPressed() }
                     KeyPopupManager.show(mainContentContainer, tv, popup)
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    (v as TextView).apply { setTextColor(Color.WHITE); background = KeyboardTheme.keyBgNormal() }
+                    (v as TextView).apply { setTextColor(Color.WHITE); background = Drawables.keyBgNormal() }
                     KeyPopupManager.hide(popup)
                     if (event.action == MotionEvent.ACTION_UP) {
                         val output = if (getIsShift()) label.uppercase() else label.lowercase()
@@ -120,15 +123,15 @@ class KeyViewFactory(
         val container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(0, KeyboardTheme.dp(context, 44), 1f).apply {
-                marginStart = KeyboardTheme.dp(context, 3)
-                marginEnd = KeyboardTheme.dp(context, 3)
+            layoutParams = LinearLayout.LayoutParams(0, Dimensions.dp(context, 44), 1f).apply {
+                marginStart = Dimensions.dp(context, 3)
+                marginEnd = Dimensions.dp(context, 3)
             }
-            background = KeyboardTheme.keyBgNormal()
+            background = Drawables.keyBgNormal()
         }
 
         container.addView(ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(KeyboardTheme.dp(context, 16), KeyboardTheme.dp(context, 16))
+            layoutParams = LinearLayout.LayoutParams(Dimensions.dp(context, 16), Dimensions.dp(context, 16))
             setImageResource(iconRes)
             scaleType = ImageView.ScaleType.FIT_CENTER
         })
@@ -137,11 +140,11 @@ class KeyViewFactory(
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    v.background = KeyboardTheme.keyBgPressed()
+                    v.background = Drawables.keyBgPressed()
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    v.background = KeyboardTheme.keyBgNormal()
+                    v.background = Drawables.keyBgNormal()
                     if (event.action == MotionEvent.ACTION_UP) onKeyPress?.invoke(label)
                     true
                 }
@@ -159,15 +162,15 @@ class KeyViewFactory(
         val container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(0, KeyboardTheme.dp(context, 44), 1.5f).apply {
-                marginStart = KeyboardTheme.dp(context, 3)
-                marginEnd = KeyboardTheme.dp(context, 3)
+            layoutParams = LinearLayout.LayoutParams(0, Dimensions.dp(context, 44), 1.5f).apply {
+                marginStart = Dimensions.dp(context, 3)
+                marginEnd = Dimensions.dp(context, 3)
             }
-            background = KeyboardTheme.keyBgSolid(KeyboardTheme.BG_KEY_SOLID)
+            background = Drawables.keyBgSolid(Colors.BG_KEY_SOLID)
         }
 
         container.addView(ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(KeyboardTheme.dp(context, 20), KeyboardTheme.dp(context, 20))
+            layoutParams = LinearLayout.LayoutParams(Dimensions.dp(context, 20), Dimensions.dp(context, 20))
             setImageResource(R.drawable.ic_backspace)
             scaleType = ImageView.ScaleType.FIT_CENTER
         })
@@ -176,7 +179,7 @@ class KeyViewFactory(
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    v.background = KeyboardTheme.keyBgSolid(KeyboardTheme.BG_KEY_SOLID_PRESSED)
+                    v.background = Drawables.keyBgSolid(Colors.BG_KEY_SOLID_PRESSED)
                     onBackspace?.invoke()
                     backspaceRunnable = object : Runnable {
                         override fun run() {
@@ -188,7 +191,7 @@ class KeyViewFactory(
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    v.background = KeyboardTheme.keyBgSolid(KeyboardTheme.BG_KEY_SOLID)
+                    v.background = Drawables.keyBgSolid(Colors.BG_KEY_SOLID)
                     backspaceRunnable?.let { backspaceHandler.removeCallbacks(it) }
                     backspaceRunnable = null
                     true
@@ -213,23 +216,23 @@ class KeyViewFactory(
         onClick: () -> Unit
     ): TextView {
         val tv = createKeyView(label, textSize, bold)
-        tv.layoutParams = LinearLayout.LayoutParams(0, KeyboardTheme.dp(context, 44), weight).apply {
-            marginStart = KeyboardTheme.dp(context, 3)
-            marginEnd = KeyboardTheme.dp(context, 3)
+        tv.layoutParams = LinearLayout.LayoutParams(0, Dimensions.dp(context, 44), weight).apply {
+            marginStart = Dimensions.dp(context, 3)
+            marginEnd = Dimensions.dp(context, 3)
         }
 
-        val bgColor = bg ?: KeyboardTheme.BG_KEY_SOLID
-        tv.background = KeyboardTheme.keyBgSolid(bgColor)
+        val bgColor = bg ?: Colors.BG_KEY_SOLID
+        tv.background = Drawables.keyBgSolid(bgColor)
 
         tv.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    (v as TextView).background = KeyboardTheme.keyBgSolid(KeyboardTheme.BG_KEY_SOLID_PRESSED)
+                    (v as TextView).background = Drawables.keyBgSolid(Colors.BG_KEY_SOLID_PRESSED)
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    (v as TextView).background = KeyboardTheme.keyBgSolid(bgColor)
+                    (v as TextView).background = Drawables.keyBgSolid(bgColor)
                     if (event.action == MotionEvent.ACTION_UP) onClick()
                     true
                 }
@@ -253,15 +256,15 @@ class KeyViewFactory(
         val container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(0, KeyboardTheme.dp(context, 44), weight).apply {
-                marginStart = KeyboardTheme.dp(context, 3)
-                marginEnd = KeyboardTheme.dp(context, 3)
+            layoutParams = LinearLayout.LayoutParams(0, Dimensions.dp(context, 44), weight).apply {
+                marginStart = Dimensions.dp(context, 3)
+                marginEnd = Dimensions.dp(context, 3)
             }
-            background = KeyboardTheme.keyBgSolid(KeyboardTheme.BG_KEY_SOLID)
+            background = Drawables.keyBgSolid(Colors.BG_KEY_SOLID)
         }
 
         container.addView(ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(KeyboardTheme.dp(context, 20), KeyboardTheme.dp(context, 20))
+            layoutParams = LinearLayout.LayoutParams(Dimensions.dp(context, 20), Dimensions.dp(context, 20))
             setImageResource(iconRes)
             scaleType = ImageView.ScaleType.FIT_CENTER
         })
@@ -270,11 +273,11 @@ class KeyViewFactory(
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    v.background = KeyboardTheme.keyBgSolid(KeyboardTheme.BG_KEY_SOLID_PRESSED)
+                    v.background = Drawables.keyBgSolid(Colors.BG_KEY_SOLID_PRESSED)
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    v.background = if (getIsShift()) KeyboardTheme.keyBgSolid(KeyboardTheme.ACCENT_BLUE) else KeyboardTheme.keyBgSolid(KeyboardTheme.BG_KEY_SOLID)
+                    v.background = if (getIsShift()) Drawables.keyBgSolid(Colors.ACCENT_BLUE) else Drawables.keyBgSolid(Colors.BG_KEY_SOLID)
                     if (event.action == MotionEvent.ACTION_UP) onClick()
                     true
                 }
@@ -293,20 +296,20 @@ class KeyViewFactory(
     @SuppressLint("ClickableViewAccessibility")
     fun addSymbolKey(row: LinearLayout, label: String) {
         val tv = createKeyView(label)
-        tv.layoutParams = LinearLayout.LayoutParams(0, KeyboardTheme.dp(context, 44), 1f).apply {
-            marginStart = KeyboardTheme.dp(context, 2)
-            marginEnd = KeyboardTheme.dp(context, 2)
+        tv.layoutParams = LinearLayout.LayoutParams(0, Dimensions.dp(context, 44), 1f).apply {
+            marginStart = Dimensions.dp(context, 2)
+            marginEnd = Dimensions.dp(context, 2)
         }
 
         tv.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    (v as TextView).apply { setTextColor(Color.WHITE); background = KeyboardTheme.keyBgPressed() }
+                    (v as TextView).apply { setTextColor(Color.WHITE); background = Drawables.keyBgPressed() }
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    (v as TextView).apply { setTextColor(Color.WHITE); background = KeyboardTheme.keyBgNormal() }
+                    (v as TextView).apply { setTextColor(Color.WHITE); background = Drawables.keyBgNormal() }
                     if (event.action == MotionEvent.ACTION_UP) onKeyPress?.invoke(label)
                     true
                 }
@@ -325,11 +328,11 @@ class KeyViewFactory(
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
-            background = KeyboardTheme.keyBgSolid(KeyboardTheme.ACCENT_BLUE)
+            background = Drawables.keyBgSolid(Colors.ACCENT_BLUE)
             compoundDrawablePadding = 0
-            layoutParams = LinearLayout.LayoutParams(0, KeyboardTheme.dp(context, 44), 2f).apply {
-                marginStart = KeyboardTheme.dp(context, 3)
-                marginEnd = KeyboardTheme.dp(context, 3)
+            layoutParams = LinearLayout.LayoutParams(0, Dimensions.dp(context, 44), 2f).apply {
+                marginStart = Dimensions.dp(context, 3)
+                marginEnd = Dimensions.dp(context, 3)
             }
         }
 
@@ -337,7 +340,7 @@ class KeyViewFactory(
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    v.background = KeyboardTheme.keyBgSolid(KeyboardTheme.ACCENT_BLUE_PRESSED)
+                    v.background = Drawables.keyBgSolid(Colors.ACCENT_BLUE_PRESSED)
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
@@ -360,32 +363,32 @@ class KeyViewFactory(
             android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH -> {
                 key.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_search, 0)
                 key.text = ""
-                key.background = KeyboardTheme.keyBgSolid(KeyboardTheme.ACCENT_BLUE)
+                key.background = Drawables.keyBgSolid(Colors.ACCENT_BLUE)
             }
             android.view.inputmethod.EditorInfo.IME_ACTION_SEND -> {
                 key.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_send, 0)
                 key.text = ""
-                key.background = KeyboardTheme.keyBgSolid(KeyboardTheme.ACCENT_GREEN)
+                key.background = Drawables.keyBgSolid(Colors.ACCENT_GREEN)
             }
             android.view.inputmethod.EditorInfo.IME_ACTION_GO -> {
                 key.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_arrow_forward, 0)
                 key.text = ""
-                key.background = KeyboardTheme.keyBgSolid(KeyboardTheme.ACCENT_BLUE)
+                key.background = Drawables.keyBgSolid(Colors.ACCENT_BLUE)
             }
             android.view.inputmethod.EditorInfo.IME_ACTION_DONE -> {
                 key.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_enter, 0)
                 key.text = ""
-                key.background = KeyboardTheme.keyBgSolid(KeyboardTheme.ACCENT_BLUE)
+                key.background = Drawables.keyBgSolid(Colors.ACCENT_BLUE)
             }
             android.view.inputmethod.EditorInfo.IME_ACTION_NEXT -> {
                 key.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_arrow_forward, 0)
                 key.text = ""
-                key.background = KeyboardTheme.keyBgSolid(KeyboardTheme.ACCENT_BLUE)
+                key.background = Drawables.keyBgSolid(Colors.ACCENT_BLUE)
             }
             else -> {
                 key.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_enter, 0)
                 key.text = ""
-                key.background = KeyboardTheme.keyBgSolid(KeyboardTheme.ACCENT_BLUE)
+                key.background = Drawables.keyBgSolid(Colors.ACCENT_BLUE)
             }
         }
     }

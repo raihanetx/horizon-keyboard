@@ -10,8 +10,11 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
-import com.horizon.keyboard.KeyboardTheme
 import com.horizon.keyboard.R
+import com.horizon.keyboard.ui.theme.Colors
+import com.horizon.keyboard.ui.theme.Drawables
+import com.horizon.keyboard.ui.theme.Dimensions
+
 
 /**
  * Top toolbar bar with keyboard logo and action icons.
@@ -47,14 +50,14 @@ class HeaderBar(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(Color.parseColor(KeyboardTheme.BG_KEY))
-            val pad = KeyboardTheme.dp(context, 8)
+            setBackgroundColor(Color.parseColor(Colors.BG_KEY))
+            val pad = Dimensions.dp(context, 8)
             setPadding(pad, 0, pad, 0)
             gravity = Gravity.CENTER_VERTICAL
         }
 
         // Keyboard logo
-        header.addView(createIconImageView(R.drawable.ic_keyboard, KeyboardTheme.dp(context, 20), tint = KeyboardTheme.ACCENT_BLUE))
+        header.addView(createIconImageView(R.drawable.ic_keyboard, Dimensions.dp(context, 20), tint = Colors.ACCENT_BLUE))
 
         // Spacer
         header.addView(View(context).apply {
@@ -94,21 +97,21 @@ class HeaderBar(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
-                KeyboardTheme.dp(context, 36),
-                KeyboardTheme.dp(context, 32)
+                Dimensions.dp(context, 36),
+                Dimensions.dp(context, 32)
             ).apply {
-                marginStart = KeyboardTheme.dp(context, 3)
-                marginEnd = KeyboardTheme.dp(context, 3)
+                marginStart = Dimensions.dp(context, 3)
+                marginEnd = Dimensions.dp(context, 3)
             }
-            val p = KeyboardTheme.dp(context, 6)
+            val p = Dimensions.dp(context, 6)
             setPadding(p, p, p, p)
-            background = KeyboardTheme.pillBg(KeyboardTheme.BG_PILL)
+            background = Drawables.pillBg(Colors.BG_PILL)
         }
 
         val iconView = ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(
-                KeyboardTheme.dp(context, 18),
-                KeyboardTheme.dp(context, 18)
+                Dimensions.dp(context, 18),
+                Dimensions.dp(context, 18)
             )
             setImageResource(drawableRes)
             scaleType = ImageView.ScaleType.FIT_CENTER
@@ -119,12 +122,12 @@ class HeaderBar(
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    v.background = KeyboardTheme.pillBg(KeyboardTheme.BG_PILL_PRESSED)
+                    v.background = Drawables.pillBg(Colors.BG_PILL_PRESSED)
                     iconView.setColorFilter(Color.WHITE)
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    v.background = KeyboardTheme.pillBg(KeyboardTheme.BG_PILL)
+                    v.background = Drawables.pillBg(Colors.BG_PILL)
                     iconView.clearColorFilter()
                     if (event.action == MotionEvent.ACTION_UP) onClick()
                     true

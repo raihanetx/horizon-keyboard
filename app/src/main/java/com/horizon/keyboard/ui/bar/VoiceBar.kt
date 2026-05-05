@@ -11,8 +11,10 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.horizon.keyboard.KeyboardTheme
 import com.horizon.keyboard.R
+import com.horizon.keyboard.ui.theme.Colors
+import com.horizon.keyboard.ui.theme.Dimensions
+
 
 /**
  * Voice recording bar shown in the header area when voice mode is active.
@@ -62,8 +64,8 @@ class VoiceBar(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(Color.parseColor(KeyboardTheme.BG_KEY))
-            val pad = KeyboardTheme.dp(context, 8)
+            setBackgroundColor(Color.parseColor(Colors.BG_KEY))
+            val pad = Dimensions.dp(context, 8)
             setPadding(pad, 0, pad, 0)
             gravity = Gravity.CENTER_VERTICAL
             visibility = View.GONE
@@ -75,31 +77,31 @@ class VoiceBar(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
-                KeyboardTheme.dp(context, 56),
-                KeyboardTheme.dp(context, 28)
+                Dimensions.dp(context, 56),
+                Dimensions.dp(context, 28)
             )
             background = GradientDrawable().apply {
-                setColor(Color.parseColor(KeyboardTheme.BG_DARK))
-                cornerRadius = KeyboardTheme.dp(context, 14).toFloat()
-                setStroke(KeyboardTheme.dp(context, 1), Color.parseColor(KeyboardTheme.BG_PILL))
+                setColor(Color.parseColor(Colors.BG_DARK))
+                cornerRadius = Dimensions.dp(context, 14).toFloat()
+                setStroke(Dimensions.dp(context, 1), Color.parseColor(Colors.BG_PILL))
             }
             setOnClickListener { onToggleLanguage() }
         }
         langContainer.addView(ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(
-                KeyboardTheme.dp(context, 14),
-                KeyboardTheme.dp(context, 14)
+                Dimensions.dp(context, 14),
+                Dimensions.dp(context, 14)
             )
             setImageResource(R.drawable.ic_globe)
             scaleType = ImageView.ScaleType.FIT_CENTER
         })
         langButtonText = TextView(context).apply {
             text = "EN"
-            setTextColor(Color.parseColor(KeyboardTheme.TEXT_SECONDARY))
+            setTextColor(Color.parseColor(Colors.TEXT_SECONDARY))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
             typeface = Typeface.DEFAULT_BOLD
             letterSpacing = 0.05f
-            setPadding(KeyboardTheme.dp(context, 4), 0, 0, 0)
+            setPadding(Dimensions.dp(context, 4), 0, 0, 0)
         }
         langContainer.addView(langButtonText)
         bar.addView(langContainer)
@@ -107,7 +109,7 @@ class VoiceBar(
         // ── Status Text ──────────────────────────────────────
         statusText = TextView(context).apply {
             text = "Tap mic to start"
-            setTextColor(Color.parseColor(KeyboardTheme.TEXT_DIM))
+            setTextColor(Color.parseColor(Colors.TEXT_DIM))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
             gravity = Gravity.CENTER
@@ -121,18 +123,18 @@ class VoiceBar(
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                KeyboardTheme.dp(context, 28)
+                Dimensions.dp(context, 28)
             )
         }
 
         // Stop button (red X)
         stopBtn = ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(
-                KeyboardTheme.dp(context, 24),
-                KeyboardTheme.dp(context, 24)
+                Dimensions.dp(context, 24),
+                Dimensions.dp(context, 24)
             )
             setImageResource(R.drawable.ic_close)
-            setColorFilter(Color.parseColor(KeyboardTheme.ACCENT_RED))
+            setColorFilter(Color.parseColor(Colors.ACCENT_RED))
             scaleType = ImageView.ScaleType.FIT_CENTER
             visibility = View.GONE
             setOnClickListener { onStopListening() }
@@ -142,9 +144,9 @@ class VoiceBar(
         // Exit button (keyboard dismiss)
         exitBtn = ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(
-                KeyboardTheme.dp(context, 24),
-                KeyboardTheme.dp(context, 24)
-            ).apply { marginStart = KeyboardTheme.dp(context, 8) }
+                Dimensions.dp(context, 24),
+                Dimensions.dp(context, 24)
+            ).apply { marginStart = Dimensions.dp(context, 8) }
             setImageResource(R.drawable.ic_keyboard_dismiss)
             scaleType = ImageView.ScaleType.FIT_CENTER
             visibility = View.GONE
@@ -155,11 +157,11 @@ class VoiceBar(
         // Start button (green mic)
         startBtn = ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(
-                KeyboardTheme.dp(context, 28),
-                KeyboardTheme.dp(context, 28)
+                Dimensions.dp(context, 28),
+                Dimensions.dp(context, 28)
             )
             setImageResource(R.drawable.ic_voice)
-            setColorFilter(Color.parseColor(KeyboardTheme.ACCENT_GREEN))
+            setColorFilter(Color.parseColor(Colors.ACCENT_GREEN))
             scaleType = ImageView.ScaleType.FIT_CENTER
             setOnClickListener { onStartListening() }
         }

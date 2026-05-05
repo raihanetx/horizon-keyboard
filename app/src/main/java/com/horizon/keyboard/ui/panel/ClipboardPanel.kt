@@ -13,9 +13,11 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import com.horizon.keyboard.KeyboardTheme
 import com.horizon.keyboard.R
 import com.horizon.keyboard.data.ClipboardRepository
+import com.horizon.keyboard.ui.theme.Colors
+import com.horizon.keyboard.ui.theme.Dimensions
+
 
 /**
  * Clipboard panel UI — history tracking, saved clips, paste/delete actions.
@@ -39,7 +41,7 @@ class ClipboardPanel(
     private var clipboardListContainer: LinearLayout? = null
     private var savedClipboardListContainer: LinearLayout? = null
 
-    private fun dp(value: Int): Int = KeyboardTheme.dp(context, value)
+    private fun dp(value: Int): Int = Dimensions.dp(context, value)
 
     // ─── Panel Creation ──────────────────────────────────────────
 
@@ -47,7 +49,7 @@ class ClipboardPanel(
         val panel = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(200))
-            setBackgroundColor(Color.parseColor(KeyboardTheme.BG_DARK))
+            setBackgroundColor(Color.parseColor(Colors.BG_DARK))
             val pad = dp(8)
             setPadding(pad, pad, pad, pad)
             visibility = View.GONE
@@ -68,7 +70,7 @@ class ClipboardPanel(
 
         headerRow.addView(TextView(context).apply {
             text = "  CLIPBOARD"
-            setTextColor(Color.parseColor(KeyboardTheme.TEXT_TERTIARY))
+            setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
             typeface = Typeface.DEFAULT_BOLD
             letterSpacing = 0.05f
@@ -78,7 +80,7 @@ class ClipboardPanel(
 
         headerRow.addView(TextView(context).apply {
             text = "Clear All"
-            setTextColor(Color.parseColor(KeyboardTheme.ACCENT_RED))
+            setTextColor(Color.parseColor(Colors.ACCENT_RED))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER_VERTICAL or Gravity.END
@@ -124,7 +126,7 @@ class ClipboardPanel(
         }
         savedHeader.addView(TextView(context).apply {
             text = "⭐ SAVED CLIPS"
-            setTextColor(Color.parseColor(KeyboardTheme.ACCENT_ORANGE))
+            setTextColor(Color.parseColor(Colors.ACCENT_ORANGE))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
             typeface = Typeface.DEFAULT_BOLD
             letterSpacing = 0.05f
@@ -194,7 +196,7 @@ class ClipboardPanel(
             container.addView(TextView(context).apply {
                 text = if (isSaved) "Long press any clip to save it here"
                 else "No clips yet.\nCopy text anywhere to track it here."
-                setTextColor(Color.parseColor(if (isSaved) "#48484A" else KeyboardTheme.TEXT_TERTIARY))
+                setTextColor(Color.parseColor(if (isSaved) "#48484A" else Colors.TEXT_TERTIARY))
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, if (isSaved) 10f else 11f)
                 gravity = Gravity.CENTER
                 val pad = dp(if (isSaved) 8 else 12)
@@ -213,13 +215,13 @@ class ClipboardPanel(
                 setPadding(pad, pad, pad, pad)
                 background = if (isSaved) {
                     GradientDrawable().apply {
-                        setColor(Color.parseColor(KeyboardTheme.SAVED_CLIP_BG))
+                        setColor(Color.parseColor(Colors.SAVED_CLIP_BG))
                         cornerRadius = dp(6).toFloat()
-                        setStroke(dp(1), Color.parseColor(KeyboardTheme.SAVED_CLIP_BORDER))
+                        setStroke(dp(1), Color.parseColor(Colors.SAVED_CLIP_BORDER))
                     }
                 } else {
                     GradientDrawable().apply {
-                        setColor(Color.parseColor(KeyboardTheme.BG_KEY))
+                        setColor(Color.parseColor(Colors.BG_KEY))
                         cornerRadius = dp(6).toFloat()
                     }
                 }
@@ -271,7 +273,7 @@ class ClipboardPanel(
             pasteContainer.addView(ImageView(context).apply {
                 layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
                 setImageResource(R.drawable.ic_paste)
-                if (isSaved) setColorFilter(Color.parseColor(KeyboardTheme.ACCENT_ORANGE))
+                if (isSaved) setColorFilter(Color.parseColor(Colors.ACCENT_ORANGE))
                 scaleType = ImageView.ScaleType.FIT_CENTER
             })
             item.addView(pasteContainer)
@@ -289,7 +291,7 @@ class ClipboardPanel(
             deleteContainer.addView(ImageView(context).apply {
                 layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
                 setImageResource(R.drawable.ic_close)
-                setColorFilter(Color.parseColor(KeyboardTheme.TEXT_TERTIARY))
+                setColorFilter(Color.parseColor(Colors.TEXT_TERTIARY))
                 scaleType = ImageView.ScaleType.FIT_CENTER
             })
             item.addView(deleteContainer)

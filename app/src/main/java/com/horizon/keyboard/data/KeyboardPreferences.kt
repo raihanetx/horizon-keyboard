@@ -2,7 +2,7 @@ package com.horizon.keyboard.data
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.horizon.keyboard.VoiceLanguage
+import com.horizon.keyboard.voice.VoiceLanguage
 
 /**
  * Type-safe wrapper around SharedPreferences for keyboard settings.
