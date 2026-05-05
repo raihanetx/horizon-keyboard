@@ -63,7 +63,7 @@ class VoiceTranscriptionEngine(
             return
         }
 
-        onStatusUpdate?.invoke("Listening (Whisper)...", "#34C759")
+        onStatusUpdate?.invoke("🎤 Whisper · Listening", "#34C759")
         scheduleAutoStop { stopWhisperAndTranscribe() }
     }
 
@@ -71,7 +71,7 @@ class VoiceTranscriptionEngine(
         if (!recorder.isRecording) return
         val pcmData = recorder.stop()
 
-        onStatusUpdate?.invoke("Transcribing (Whisper)...", "#FF9F0A")
+        onStatusUpdate?.invoke("🎤 Whisper · Transcribing", "#FF9F0A")
 
         if (pcmData.isEmpty()) {
             onStatusUpdate?.invoke("No audio captured", null)
@@ -103,7 +103,7 @@ class VoiceTranscriptionEngine(
             return
         }
 
-        onStatusUpdate?.invoke("Listening (Gemma)...", "#34C759")
+        onStatusUpdate?.invoke("🤖 Gemma · Listening", "#34C759")
         scheduleAutoStop { stopGemmaAndTranscribe() }
     }
 
@@ -111,7 +111,7 @@ class VoiceTranscriptionEngine(
         if (!recorder.isRecording) return
         val pcmData = recorder.stop()
 
-        onStatusUpdate?.invoke("Transcribing...", "#FF9F0A")
+        onStatusUpdate?.invoke("🤖 Gemma · Transcribing", "#FF9F0A")
 
         if (pcmData.isEmpty()) {
             onStatusUpdate?.invoke("No audio captured", null)

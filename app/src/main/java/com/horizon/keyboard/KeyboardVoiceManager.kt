@@ -70,7 +70,8 @@ class KeyboardVoiceManager(
         },
         onStatusChange = { message, listening ->
             if (!userStoppedListening) {
-                voiceBar.updateStatus(message, if (listening) Colors.ACCENT_GREEN else Colors.TEXT_DIM)
+                val engineMsg = if (listening) "📱 Android · Listening" else "📱 Android · $message"
+                voiceBar.updateStatus(engineMsg, if (listening) Colors.ACCENT_GREEN else Colors.TEXT_DIM)
                 voiceBar.updateListeningState(listening)
             }
         },
@@ -110,6 +111,7 @@ class KeyboardVoiceManager(
 
         hideHeaderShowVoiceBar()
         sessionManager.language = currentVoiceLang
+        voiceBar.updateStatus("📱 Android · Listening", Colors.ACCENT_GREEN)
         mainHandler.postDelayed({ sessionManager.start() }, FADE_DURATION + 100)
         scheduleHide(120_000L)
     }
@@ -128,10 +130,16 @@ class KeyboardVoiceManager(
         hideHeaderShowVoiceBar()
 
         val engine = engineRouter.resolve()
+        val engineLabel = when (engine) {
+            VoiceEngineRouter.Engine.WHISPER -> "🎤 Whisper"
+            VoiceEngineRouter.Engine.GEMMA -> "🤖 Gemma"
+            VoiceEngineRouter.Engine.ANDROID -> "📱 Android"
+        }
         mainHandler.postDelayed({
             when (engine) {
                 VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
                     voiceBar.updateListeningState(true)
+                    voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
                     engineRouter.startRecording(engine)
                 }
                 VoiceEngineRouter.Engine.ANDROID -> {
@@ -220,9 +228,15 @@ class KeyboardVoiceManager(
             userStoppedListening = false
             muteSystemSounds()
             val engine = engineRouter.resolve()
+            val engineLabel = when (engine) {
+                VoiceEngineRouter.Engine.WHISPER -> "🎤 Whisper"
+                VoiceEngineRouter.Engine.GEMMA -> "🤖 Gemma"
+                VoiceEngineRouter.Engine.ANDROID -> "📱 Android"
+            }
             when (engine) {
                 VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
                     voiceBar.updateListeningState(true)
+                    voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
                     engineRouter.startRecording(engine)
                 }
                 VoiceEngineRouter.Engine.ANDROID -> {

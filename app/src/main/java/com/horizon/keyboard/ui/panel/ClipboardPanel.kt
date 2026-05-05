@@ -4,8 +4,11 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Handler
+import android.os.Looper
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -40,6 +43,9 @@ class ClipboardPanel(
         private set
     private var clipboardListContainer: LinearLayout? = null
     private var savedClipboardListContainer: LinearLayout? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var holdToSaveRunnable: Runnable? = null
+    private var holdProgressView: View? = null
 
     private fun dp(value: Int): Int = Dimensions.dp(context, value)
 
@@ -77,6 +83,57 @@ class ClipboardPanel(
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
             gravity = Gravity.CENTER_VERTICAL
         })
+
+        // Hold-to-save icon (long press 5s to save latest clip)
+        val holdToSaveContainer = FrameLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(8) }
+        }
+        val holdToSaveIcon = TextView(context).apply {
+            text = "⭐"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            gravity = Gravity.CENTER
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+        }
+        val holdProgressBg = View(context).apply {
+            layoutParams = FrameLayout.LayoutParams(0, FrameLayout.LayoutParams.MATCH_PARENT)
+            setBackgroundColor(Color.parseColor("#33FF9F0A"))
+            visibility = View.GONE
+        }
+        holdToSaveContainer.addView(holdProgressBg)
+        holdToSaveContainer.addView(holdToSaveIcon)
+        holdProgressView = holdProgressBg
+
+        holdToSaveContainer.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    // Start fill animation over 5 seconds
+                    holdProgressBg.visibility = View.VISIBLE
+                    holdProgressBg.scaleX = 0f
+                    holdProgressBg.layoutParams = FrameLayout.LayoutParams(dp(28), FrameLayout.LayoutParams.MATCH_PARENT)
+                    holdProgressBg.animate().scaleX(1f).setDuration(5000).start()
+
+                    holdToSaveRunnable = Runnable {
+                        saveLatestClip()
+                        holdProgressBg.visibility = View.GONE
+                        holdProgressBg.animate().cancel()
+                        holdProgressBg.scaleX = 0f
+                    }
+                    mainHandler.postDelayed(holdToSaveRunnable!!, 5000)
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    holdToSaveRunnable?.let { mainHandler.removeCallbacks(it) }
+                    holdToSaveRunnable = null
+                    holdProgressBg.animate().cancel()
+                    holdProgressBg.animate().scaleX(0f).setDuration(200).withEndAction {
+                        holdProgressBg.visibility = View.GONE
+                    }.start()
+                    true
+                }
+                else -> false
+            }
+        }
+        headerRow.addView(holdToSaveContainer)
 
         headerRow.addView(TextView(context).apply {
             text = "Clear All"
@@ -166,6 +223,24 @@ class ClipboardPanel(
     fun onClipboardChanged(text: String) {
         if (repository.addToHistory(text)) {
             if (isVisible) refreshPanel()
+        }
+    }
+
+    /**
+     * Save the most recent clipboard history item to saved clips.
+     * Called when user long-presses the ⭐ icon in the header for 5 seconds.
+     */
+    private fun saveLatestClip() {
+        val latest = repository.history.firstOrNull()
+        if (latest != null) {
+            if (repository.saveClip(latest)) {
+                refreshPanel()
+                Toast.makeText(context, "⭐ Saved!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Already saved", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "No clips to save", Toast.LENGTH_SHORT).show()
         }
     }
 

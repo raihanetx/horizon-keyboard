@@ -164,12 +164,12 @@ class VoiceBar(
     }
 
     /**
-     * Update the status text — always keeps "Listening" displayed.
+     * Update the status text and color.
+     * Shows engine name + state (e.g. "🎤 Whisper · Listening", "🤖 Gemma · Transcribing").
      */
     fun updateStatus(message: String, colorHex: String? = null) {
-        // Keep "Listening" static — don't change text
-        statusText.text = "Listening"
-        statusText.setTextColor(Color.parseColor(Colors.ACCENT_GREEN))
+        statusText.text = message
+        statusText.setTextColor(Color.parseColor(colorHex ?: Colors.ACCENT_GREEN))
     }
 
     companion object {
