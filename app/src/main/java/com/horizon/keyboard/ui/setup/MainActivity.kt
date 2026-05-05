@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.horizon.keyboard.data.SecureKeyStore
 
 class MainActivity : ComponentActivity() {
 
@@ -53,6 +54,11 @@ fun HorizonSetupScreen() {
                     == PackageManager.PERMISSION_GRANTED
         )
     }
+
+    // Voice engine credential status
+    var hasGroqKey by remember { mutableStateOf(SecureKeyStore.hasGroqKey(context)) }
+    var hasGemmaKey by remember { mutableStateOf(SecureKeyStore.hasGemmaKey(context)) }
+    val hasAnyKey = hasGroqKey || hasGemmaKey
 
     val micLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -192,12 +198,69 @@ fun HorizonSetupScreen() {
             Text("Step 3: Switch to Horizon", color = accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Step 4: Voice Engine Credentials
+        val apiKeyLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            // Refresh key status when returning from ApiKeyActivity
+            hasGroqKey = SecureKeyStore.hasGroqKey(context)
+            hasGemmaKey = SecureKeyStore.hasGemmaKey(context)
+        }
+
+        Button(
+            onClick = {
+                apiKeyLauncher.launch(Intent(context, ApiKeyActivity::class.java))
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (hasAnyKey) Color(0xFF34C759) else Color(0xFFFF9F0A)
+            ),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_voice),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                colorFilter = ColorFilter.tint(Color.White)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (hasAnyKey) {
+                    val parts = mutableListOf<String>()
+                    if (hasGroqKey) parts.add("Whisper ✓")
+                    if (hasGemmaKey) parts.add("Gemma ✓")
+                    "Step 4: Voice Engine — ${parts.joinToString(" · ")}"
+                } else {
+                    "Step 4: Setup Voice Engine Credentials"
+                },
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        // Credential safety indicator
+        if (hasAnyKey) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "🔒 Credentials encrypted with Android Keystore (AES-256-GCM)",
+                color = Color(0xFF34C759),
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "1. Tap Step 1 → Allow microphone access\n" +
                     "2. Tap Step 2 → find \"Horizon Keyboard\" → toggle ON\n" +
-                    "3. Tap Step 3 → select \"Horizon Keyboard\"",
+                    "3. Tap Step 3 → select \"Horizon Keyboard\"\n" +
+                    "4. Tap Step 4 → add API keys for voice typing",
             color = Color(0xFF636366),
             fontSize = 12.sp,
             textAlign = TextAlign.Start,
