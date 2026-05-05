@@ -14,6 +14,7 @@ import android.view.View
 import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
 import com.horizon.keyboard.ui.bar.VoiceBar
+import com.horizon.keyboard.ui.panel.SettingsPanel
 
 /**
  * Manages voice recognition — Android SpeechRecognizer, Whisper/Gemma engine delegation,
@@ -25,7 +26,7 @@ import com.horizon.keyboard.ui.bar.VoiceBar
 class KeyboardVoiceManager(
     private val context: Context,
     private val voiceEngine: VoiceTranscriptionEngine,
-    private val settingsManager: KeyboardSettingsManager,
+    private val settingsPanel: SettingsPanel,
     private val onKeyPress: ((String) -> Unit)? = null,
     private val onBackspace: (() -> Unit)? = null,
     private val onEnter: (() -> Unit)? = null,
@@ -46,7 +47,7 @@ class KeyboardVoiceManager(
     var headerBar: LinearLayout? = null
     var keyboardContainer: LinearLayout? = null
     var clipboardPanel: LinearLayout? = null
-    var settingsPanel: View? = null
+    var settingsPanelView: View? = null
 
     // ─── Voice Bar Creation ──────────────────────────────────────
 
@@ -66,7 +67,7 @@ class KeyboardVoiceManager(
             }
         )
         voiceBar.create()
-        voiceBar.updateLanguageLabel(settingsManager.selectedLanguage.whisperCode.uppercase())
+        voiceBar.updateLanguageLabel(settingsPanel.selectedLanguage.whisperCode.uppercase())
         return voiceBar.view
     }
 
@@ -93,7 +94,7 @@ class KeyboardVoiceManager(
 
     fun showVoiceBarForEngine() {
         clipboardPanel?.visibility = View.GONE
-        settingsPanel?.visibility = View.GONE
+        settingsPanelView?.visibility = View.GONE
         keyboardContainer?.visibility = View.VISIBLE
 
         pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
@@ -103,15 +104,15 @@ class KeyboardVoiceManager(
         destroyRecognizer()
         hideHeaderShowVoiceBar()
 
-        val engineType = settingsManager.voiceEngineType
+        val engineType = settingsPanel.voiceEngineType
         when {
-            engineType == KeyboardSettingsManager.VoiceEngineType.GEMMA_API && voiceEngine.gemmaApiKey.isNotEmpty() -> {
+            engineType == SettingsPanel.VoiceEngineType.GEMMA_API && voiceEngine.gemmaApiKey.isNotEmpty() -> {
                 mainHandler.postDelayed({ startGemmaRecording() }, FADE_DURATION + 100)
             }
-            engineType == KeyboardSettingsManager.VoiceEngineType.WHISPER_GROQ && voiceEngine.groqApiKey.isNotEmpty() -> {
+            engineType == SettingsPanel.VoiceEngineType.WHISPER_GROQ && voiceEngine.groqApiKey.isNotEmpty() -> {
                 mainHandler.postDelayed({ startWhisperRecording() }, FADE_DURATION + 100)
             }
-            engineType == KeyboardSettingsManager.VoiceEngineType.AUTO -> {
+            engineType == SettingsPanel.VoiceEngineType.AUTO -> {
                 mainHandler.postDelayed({
                     if (currentVoiceLang == VoiceLanguage.BANGLA.gemmaCode && voiceEngine.gemmaApiKey.isNotEmpty()) {
                         startGemmaRecording()
@@ -310,14 +311,14 @@ class KeyboardVoiceManager(
     // ─── Voice Toggle ────────────────────────────────────────────
 
     fun toggleVoiceRecognition() {
-        val engineType = settingsManager.voiceEngineType
+        val engineType = settingsPanel.voiceEngineType
         if (isListening) {
             userStoppedListening = true
-            if (engineType == KeyboardSettingsManager.VoiceEngineType.GEMMA_API && voiceEngine.isRecordingAudio) {
+            if (engineType == SettingsPanel.VoiceEngineType.GEMMA_API && voiceEngine.isRecordingAudio) {
                 stopGemmaRecordingAndTranscribe()
-            } else if (engineType == KeyboardSettingsManager.VoiceEngineType.WHISPER_GROQ && voiceEngine.isRecordingAudio) {
+            } else if (engineType == SettingsPanel.VoiceEngineType.WHISPER_GROQ && voiceEngine.isRecordingAudio) {
                 stopWhisperRecordingAndTranscribe()
-            } else if (engineType == KeyboardSettingsManager.VoiceEngineType.AUTO && voiceEngine.isRecordingAudio) {
+            } else if (engineType == SettingsPanel.VoiceEngineType.AUTO && voiceEngine.isRecordingAudio) {
                 if (currentVoiceLang == VoiceLanguage.BANGLA.gemmaCode && voiceEngine.gemmaApiKey.isNotEmpty()) {
                     stopGemmaRecordingAndTranscribe()
                 } else if (voiceEngine.groqApiKey.isNotEmpty()) {
@@ -332,13 +333,13 @@ class KeyboardVoiceManager(
         } else {
             userStoppedListening = false
             when (engineType) {
-                KeyboardSettingsManager.VoiceEngineType.GEMMA_API -> {
+                SettingsPanel.VoiceEngineType.GEMMA_API -> {
                     if (voiceEngine.gemmaApiKey.isNotEmpty()) startGemmaRecording()
                 }
-                KeyboardSettingsManager.VoiceEngineType.WHISPER_GROQ -> {
+                SettingsPanel.VoiceEngineType.WHISPER_GROQ -> {
                     if (voiceEngine.groqApiKey.isNotEmpty()) startWhisperRecording()
                 }
-                KeyboardSettingsManager.VoiceEngineType.AUTO -> {
+                SettingsPanel.VoiceEngineType.AUTO -> {
                     if (currentVoiceLang == VoiceLanguage.BANGLA.gemmaCode && voiceEngine.gemmaApiKey.isNotEmpty()) {
                         startGemmaRecording()
                     } else if (voiceEngine.groqApiKey.isNotEmpty()) {
@@ -396,7 +397,7 @@ class KeyboardVoiceManager(
     }
 
     fun syncLanguage() {
-        currentVoiceLang = settingsManager.selectedLanguage.gemmaCode
-        voiceBar.updateLanguageLabel(settingsManager.selectedLanguage.whisperCode.uppercase())
+        currentVoiceLang = settingsPanel.selectedLanguage.gemmaCode
+        voiceBar.updateLanguageLabel(settingsPanel.selectedLanguage.whisperCode.uppercase())
     }
 }

@@ -16,6 +16,9 @@ import com.horizon.keyboard.ui.keyboard.KeyPopupManager
 import com.horizon.keyboard.ui.keyboard.KeyRowBuilder
 import com.horizon.keyboard.ui.keyboard.KeyViewFactory
 import com.horizon.keyboard.ui.keyboard.SymbolPanel
+import com.horizon.keyboard.ui.panel.ClipboardPanel
+import com.horizon.keyboard.ui.panel.PanelHost
+import com.horizon.keyboard.ui.panel.SettingsPanel
 
 /**
  * Horizon Keyboard — Core keyboard layout coordinator.
@@ -27,8 +30,8 @@ import com.horizon.keyboard.ui.keyboard.SymbolPanel
  * - [KeyRowBuilder] for row construction
  * - [SymbolPanel] for the symbol grid
  * - [KeyboardVoiceManager] for voice recognition
- * - [KeyboardSettingsManager] for settings panel
- * - [KeyboardClipboardManager] for clipboard panel
+ * - [SettingsPanel] for settings panel
+ * - [ClipboardPanel] for clipboard panel
  */
 class KeyboardView(context: Context) : LinearLayout(context) {
 
@@ -93,17 +96,21 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         onKeyPress?.invoke(word)
     }
 
+    // ─── Panel Host ──────────────────────────────────────────────
+
+    private val panelHost = PanelHost(context)
+
     // ─── Managers ────────────────────────────────────────────────
 
     private val voiceEngine = VoiceTranscriptionEngine(context)
-    private val settingsManager = KeyboardSettingsManager(context, voiceEngine) {
-        keyboardContainer?.visibility = View.VISIBLE
+    private val settingsPanel = SettingsPanel(context, voiceEngine) {
+        panelHost.showKeyboard()
     }
-    private val clipboardManager = KeyboardClipboardManager(context, { onPaste?.invoke(it) }) {
-        keyboardContainer?.visibility = View.VISIBLE
+    private val clipboardPanel = ClipboardPanel(context, onPaste = { onPaste?.invoke(it) }) {
+        panelHost.showKeyboard()
     }
     private val voiceManager = KeyboardVoiceManager(
-        context, voiceEngine, settingsManager,
+        context, voiceEngine, settingsPanel,
         onKeyPress, onBackspace, onEnter, onSpace, onArrowKey
     )
 
@@ -114,7 +121,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         setBackgroundColor(Color.parseColor(KeyboardTheme.BG_DARK))
         val p = KeyboardTheme.dp(context, 6)
         setPadding(p, p, p, p)
-        settingsManager.loadSettings()
+        settingsPanel.loadSettings()
         voiceManager.setupVoiceEngineCallbacks()
         buildKeyboard()
     }
@@ -132,7 +139,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     }
 
     fun onClipboardChanged(text: String) {
-        clipboardManager.onClipboardChanged(text)
+        clipboardPanel.onClipboardChanged(text)
     }
 
     // ─── Build Keyboard ──────────────────────────────────────────
@@ -168,18 +175,24 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         mainContentContainer?.addView(symbolContainer)
 
         // Clipboard panel
-        mainContentContainer?.addView(clipboardManager.createPanel())
+        mainContentContainer?.addView(clipboardPanel.createPanel())
 
         // Settings panel
-        mainContentContainer?.addView(settingsManager.createPanel())
+        mainContentContainer?.addView(settingsPanel.createPanel())
 
         addView(mainContentContainer)
+
+        // Wire up panel host
+        panelHost.keyboardPanel = keyboardContainer
+        panelHost.symbolPanel = symbolContainer
+        panelHost.clipboardPanel = clipboardPanel.panel
+        panelHost.settingsPanel = settingsPanel.panel
 
         // Wire up voice manager references
         voiceManager.headerBar = headerBar.view
         voiceManager.keyboardContainer = keyboardContainer
-        voiceManager.clipboardPanel = clipboardManager.panel
-        voiceManager.settingsPanel = settingsManager.panel
+        voiceManager.clipboardPanel = clipboardPanel.panel
+        voiceManager.settingsPanelView = settingsPanel.panel
     }
 
     // ─── Header / Voice Slot ─────────────────────────────────────
@@ -199,41 +212,9 @@ class KeyboardView(context: Context) : LinearLayout(context) {
 
     // ─── Panel Toggling ──────────────────────────────────────────
 
-    private fun toggleClipboardPanel() {
-        if (clipboardManager.isVisible) {
-            clipboardManager.hide()
-            keyboardContainer?.visibility = View.VISIBLE
-        } else {
-            keyboardContainer?.visibility = View.GONE
-            symbolContainer?.visibility = View.GONE
-            settingsManager.hide()
-            clipboardManager.show()
-        }
-    }
-
-    private fun toggleSettingsPanel() {
-        if (settingsManager.isVisible) {
-            settingsManager.hide()
-            keyboardContainer?.visibility = View.VISIBLE
-        } else {
-            keyboardContainer?.visibility = View.GONE
-            symbolContainer?.visibility = View.GONE
-            clipboardManager.hide()
-            settingsManager.show()
-        }
-    }
-
-    private fun toggleSymbolPanel() {
-        if (symbolContainer?.visibility == View.GONE) {
-            symbolContainer?.visibility = View.VISIBLE
-            keyboardContainer?.visibility = View.GONE
-            clipboardManager.hide()
-            settingsManager.hide()
-        } else {
-            symbolContainer?.visibility = View.GONE
-            keyboardContainer?.visibility = View.VISIBLE
-        }
-    }
+    private fun toggleClipboardPanel() = panelHost.toggleClipboard()
+    private fun toggleSettingsPanel() = panelHost.toggleSettings()
+    private fun toggleSymbolPanel() = panelHost.toggleSymbol()
 
     // ─── Shift Toggle ────────────────────────────────────────────
 
