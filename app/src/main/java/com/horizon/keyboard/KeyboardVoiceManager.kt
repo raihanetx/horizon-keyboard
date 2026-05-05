@@ -1,6 +1,7 @@
 package com.horizon.keyboard
 
 import android.content.Context
+import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.view.View
@@ -40,6 +41,7 @@ class KeyboardVoiceManager(
     private var pendingHideRunnable: Runnable? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private val FADE_DURATION = 200L
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     // References to other panels for visibility toggling
     var headerBar: LinearLayout? = null
@@ -104,6 +106,7 @@ class KeyboardVoiceManager(
         pendingHideRunnable = null
         userStoppedListening = false
         sessionManager.destroy()
+        muteSystemSounds()
 
         hideHeaderShowVoiceBar()
         sessionManager.language = currentVoiceLang
@@ -121,6 +124,7 @@ class KeyboardVoiceManager(
         userStoppedListening = false
 
         sessionManager.destroy()
+        muteSystemSounds()
         hideHeaderShowVoiceBar()
 
         val engine = engineRouter.resolve()
@@ -153,6 +157,7 @@ class KeyboardVoiceManager(
             header.visibility = View.VISIBLE
             header.animate().alpha(1f).setDuration(FADE_DURATION).start()
         }
+        mainHandler.postDelayed({ unmuteSystemSounds() }, 500)
     }
 
     private fun stopEverythingAndClose() {
@@ -168,6 +173,7 @@ class KeyboardVoiceManager(
             header.visibility = View.VISIBLE
             header.animate().alpha(1f).setDuration(FADE_DURATION).start()
         }
+        mainHandler.postDelayed({ unmuteSystemSounds() }, 500)
     }
 
     private fun hideHeaderShowVoiceBar() {
@@ -175,6 +181,14 @@ class KeyboardVoiceManager(
             headerBar?.visibility = View.GONE
         }
         voiceBar.show()
+    }
+
+    private fun muteSystemSounds() {
+        try { audioManager.setStreamMute(AudioManager.STREAM_SYSTEM, true) } catch (_: Exception) {}
+    }
+
+    private fun unmuteSystemSounds() {
+        try { audioManager.setStreamMute(AudioManager.STREAM_SYSTEM, false) } catch (_: Exception) {}
     }
 
     private fun scheduleHide(delayMs: Long) {
@@ -204,6 +218,7 @@ class KeyboardVoiceManager(
         if (userStoppedListening || !engineRouter.isRecording() && !sessionManager.isActive) {
             // Start listening
             userStoppedListening = false
+            muteSystemSounds()
             val engine = engineRouter.resolve()
             when (engine) {
                 VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
@@ -263,6 +278,7 @@ class KeyboardVoiceManager(
         pendingHideRunnable = null
         sessionManager.destroy()
         voiceEngine.stopRecording()
+        unmuteSystemSounds()
     }
 
     fun syncLanguage() {
