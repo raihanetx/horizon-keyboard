@@ -221,7 +221,14 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     // ─── Panel Toggling ──────────────────────────────────────────
 
     private fun toggleClipboardPanel() = panelHost.toggleClipboard()
-    private fun toggleSettingsPanel() = panelHost.toggleSettings()
+    private fun toggleSettingsPanel() {
+        if (panelHost.isSettings) {
+            panelHost.showKeyboard()
+        } else {
+            settingsPanel.show()  // builds panel content
+            panelHost.showSettings()
+        }
+    }
     private fun toggleSymbolPanel() = panelHost.toggleSymbol()
 
     // ─── Shift Toggle ────────────────────────────────────────────
