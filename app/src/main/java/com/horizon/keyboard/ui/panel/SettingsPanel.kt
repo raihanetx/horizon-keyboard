@@ -1,6 +1,5 @@
 package com.horizon.keyboard.ui.panel
 
-import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
@@ -55,7 +54,7 @@ class SettingsPanel(
 
     fun createPanel(): ScrollView {
         val scrollView = ScrollView(context).apply {
-            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(260))
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(320))
             setBackgroundColor(Color.parseColor(Colors.BG_DARK))
             visibility = View.GONE
         }
@@ -203,54 +202,48 @@ class SettingsPanel(
             })
         }
 
-        // Groq API Key
-        if (voiceEngineType == VoiceEngineType.WHISPER_GROQ || voiceEngineType == VoiceEngineType.AUTO) {
-            panel.addView(sectionHeader("GROQ API KEY (WHISPER)"))
-            val maskedGroq = Dimensions.maskKey(voiceEngine.groqApiKey)
-            panel.addView(settingsTextInput(maskedGroq.ifEmpty { "Enter Groq API key..." }) { newKey ->
-                voiceEngine.groqApiKey = newKey
-                saveSettings()
-            })
-            panel.addView(TextView(context).apply {
-                text = "🔒 Encrypted with Android Keystore · Free: 2,000 RPD"
-                setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
-                setPadding(dp(10), 0, 0, dp(4))
-            })
-        }
+        // Groq API Key (always visible so users can enter key before selecting engine)
+        panel.addView(sectionHeader("GROQ API KEY (WHISPER)"))
+        val maskedGroq = Dimensions.maskKey(voiceEngine.groqApiKey)
+        panel.addView(settingsTextInput(maskedGroq.ifEmpty { "Enter Groq API key..." }) { newKey ->
+            voiceEngine.groqApiKey = newKey
+            saveSettings()
+        })
+        panel.addView(TextView(context).apply {
+            text = "🔒 Encrypted with Android Keystore · Free: 2,000 RPD"
+            setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
+            setPadding(dp(10), 0, 0, dp(4))
+        })
 
-        // Gemma API Key
-        if (voiceEngineType == VoiceEngineType.GEMMA_API || voiceEngineType == VoiceEngineType.AUTO) {
-            panel.addView(sectionHeader("GOOGLE AI STUDIO API KEY (GEMMA)"))
-            val maskedGemma = Dimensions.maskKey(voiceEngine.gemmaApiKey)
-            panel.addView(settingsTextInput(maskedGemma.ifEmpty { "Enter API key..." }) { newKey ->
-                voiceEngine.gemmaApiKey = newKey
-                saveSettings()
-            })
-            panel.addView(TextView(context).apply {
-                text = "🔒 Encrypted with Android Keystore · Free · Best for Bangla"
-                setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
-                setPadding(dp(10), 0, 0, dp(4))
-            })
-        }
+        // Gemma API Key (always visible)
+        panel.addView(sectionHeader("GOOGLE AI STUDIO API KEY (GEMMA)"))
+        val maskedGemma = Dimensions.maskKey(voiceEngine.gemmaApiKey)
+        panel.addView(settingsTextInput(maskedGemma.ifEmpty { "Enter API key..." }) { newKey ->
+            voiceEngine.gemmaApiKey = newKey
+            saveSettings()
+        })
+        panel.addView(TextView(context).apply {
+            text = "🔒 Encrypted with Android Keystore · Free · Best for Bangla"
+            setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
+            setPadding(dp(10), 0, 0, dp(4))
+        })
 
-        // Gemma Model
-        if (voiceEngineType == VoiceEngineType.GEMMA_API || voiceEngineType == VoiceEngineType.AUTO) {
-            panel.addView(sectionHeader("GEMMA MODEL"))
-            val models = listOf(
-                "gemma-4-e4b-it" to "Gemma 4 E4B (4B — Better)",
-                "gemma-4-e2b-it" to "Gemma 4 E2B (2B — Faster)"
-            )
-            models.forEach { (model, label) ->
-                val isSelected = (voiceEngine.currentVoiceLang == "bn-BD" && voiceEngine.gemmaModelBn == model) ||
-                    (voiceEngine.currentVoiceLang == "en-US" && voiceEngine.gemmaModelEn == model)
-                panel.addView(settingsOption(label, isSelected) {
-                    if (voiceEngine.currentVoiceLang == "bn-BD") voiceEngine.gemmaModelBn = model else voiceEngine.gemmaModelEn = model
-                    saveSettings()
-                    refreshPanel()
-                })
-            }
+        // Gemma Model (always visible)
+        panel.addView(sectionHeader("GEMMA MODEL"))
+        val models = listOf(
+            "gemma-4-e4b-it" to "Gemma 4 E4B (4B — Better)",
+            "gemma-4-e2b-it" to "Gemma 4 E2B (2B — Faster)"
+        )
+        models.forEach { (model, label) ->
+            val isSelected = (voiceEngine.currentVoiceLang == "bn-BD" && voiceEngine.gemmaModelBn == model) ||
+                (voiceEngine.currentVoiceLang == "en-US" && voiceEngine.gemmaModelEn == model)
+            panel.addView(settingsOption(label, isSelected) {
+                if (voiceEngine.currentVoiceLang == "bn-BD") voiceEngine.gemmaModelBn = model else voiceEngine.gemmaModelEn = model
+                saveSettings()
+                refreshPanel()
+            })
         }
 
         // Close button
@@ -318,62 +311,69 @@ class SettingsPanel(
     private fun settingsTextInput(hint: String, onTextChanged: (String) -> Unit): LinearLayout {
         val container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(36)).apply { bottomMargin = dp(4) }
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply { bottomMargin = dp(4) }
             gravity = Gravity.CENTER_VERTICAL
             val pad = dp(10)
-            setPadding(pad, 0, pad, 0)
+            setPadding(pad, pad, pad, pad)
             background = GradientDrawable().apply {
                 setColor(Color.parseColor(Colors.BG_KEY))
                 cornerRadius = dp(6).toFloat()
                 setStroke(dp(1), Color.parseColor(Colors.BG_PILL))
             }
-            isClickable = true
-            isFocusable = true
-            setOnClickListener {
-                showApiKeyDialog(hint, onTextChanged)
-            }
         }
 
-        container.addView(TextView(context).apply {
-            text = if (hint.length > 8) "${hint.take(4)}...${hint.takeLast(4)}" else hint
-            setTextColor(Color.parseColor(if (hint.length > 8) Colors.TEXT_SECONDARY else Colors.TEXT_TERTIARY))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            typeface = Typeface.MONOSPACE
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
-            gravity = Gravity.CENTER_VERTICAL
-        })
-
-        // Tap indicator
-        container.addView(ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
-            setImageResource(R.drawable.ic_settings)
-            setColorFilter(Color.parseColor(Colors.TEXT_TERTIARY))
-            scaleType = ImageView.ScaleType.FIT_CENTER
-        })
-
-        return container
-    }
-
-    private fun showApiKeyDialog(currentHint: String, onResult: (String) -> Unit) {
-        val input = EditText(context).apply {
+        // Inline EditText — works reliably in IME context (no AlertDialog needed)
+        val editText = EditText(context).apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setPadding(dp(16), dp(12), dp(16), dp(12))
-            setHint("Paste API key here...")
             setTextColor(Color.WHITE)
             setHintTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
-        }
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            typeface = Typeface.MONOSPACE
+            setBackgroundResource(0) // no default underline
+            isSingleLine = true
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            gravity = Gravity.CENTER_VERTICAL
 
-        AlertDialog.Builder(context)
-            .setTitle("Enter API Key")
-            .setView(input)
-            .setPositiveButton("Save") { _, _ ->
-                val key = input.text.toString().trim()
-                if (key.isNotEmpty()) {
-                    onResult(key)
-                    refreshPanel()
+            if (hint.length > 8) {
+                // Existing key — show placeholder so user can paste a fresh key
+                setText("")
+                setHint("Tap to edit API key...")
+            } else {
+                setHint(hint)
+            }
+
+            // Save on focus lost
+            setOnFocusChangeListener { _, hasFocus ->
+                if (!hasFocus) {
+                    val key = text.toString().trim()
+                    if (key.isNotEmpty()) {
+                        onTextChanged(key)
+                    }
                 }
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
+        container.addView(editText)
+
+        // Save button
+        val saveBtn = TextView(context).apply {
+            text = "✓"
+            setTextColor(Color.parseColor(Colors.ACCENT_GREEN))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding(dp(8), 0, 0, 0)
+            setOnClickListener {
+                val key = editText.text.toString().trim()
+                if (key.isNotEmpty()) {
+                    onTextChanged(key)
+                    editText.setText("")
+                    editText.setHint("✓ Saved!")
+                    editText.setHintTextColor(Color.parseColor(Colors.ACCENT_GREEN))
+                }
+            }
+        }
+        container.addView(saveBtn)
+
+        return container
     }
 }
