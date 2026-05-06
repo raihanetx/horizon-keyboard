@@ -3,9 +3,7 @@ package com.horizon.keyboard
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
 import android.util.Log
-import com.horizon.keyboard.voice.api.GemmaApi
 import com.horizon.keyboard.voice.api.WhisperApi
 import com.horizon.keyboard.voice.audio.AudioRecorder
 import com.horizon.keyboard.voice.audio.WavEncoder
@@ -19,7 +17,6 @@ import java.util.concurrent.Executors
  * - [AudioRecorder] for microphone capture
  * - [WavEncoder] for PCM → WAV conversion
  * - [WhisperApi] for Groq Whisper transcription
- * - [GemmaApi] for Google AI Gemma transcription
  */
 class VoiceTranscriptionEngine(
     context: Context,
@@ -29,7 +26,6 @@ class VoiceTranscriptionEngine(
     // ── Configuration ────────────────────────────────────────────
 
     var groqApiKey: String = ""
-    var gemmaApiKey: String = ""
     var currentVoiceLang: String = "en-US"
 
     // ── Internal Components ──────────────────────────────────────
@@ -97,54 +93,6 @@ class VoiceTranscriptionEngine(
         }
     }
 
-    // ── Gemma ────────────────────────────────────────────────────
-
-    fun startGemmaRecording() {
-        if (!recorder.hasPermission()) {
-            onStatusUpdate?.invoke("Microphone permission needed", null)
-            return
-        }
-        if (!recorder.start()) {
-            onStatusUpdate?.invoke("Audio error: failed to start recorder", null)
-            return
-        }
-
-        onStatusUpdate?.invoke("🤖 Gemma · Listening", "#34C759")
-        scheduleAutoStop { stopGemmaAndTranscribe() }
-    }
-
-    fun stopGemmaAndTranscribe() {
-        if (!recorder.isRecording) return
-        val pcmData = recorder.stop()
-
-        Log.d("VoiceEngine", "Gemma: pcmData=${pcmData.size}B, gemmaKey=${gemmaApiKey.take(4)}..., lang=$currentVoiceLang")
-
-        onStatusUpdate?.invoke("🤖 Gemma · Transcribing", "#FF9F0A")
-
-        if (pcmData.isEmpty()) {
-            onStatusUpdate?.invoke("No audio captured", null)
-            return
-        }
-
-        if (gemmaApiKey.isEmpty()) {
-            onStatusUpdate?.invoke("No Google AI Studio API key set!", null)
-            return
-        }
-
-        val wavData = WavEncoder.encode(pcmData, AudioRecorder.SAMPLE_RATE, 1, 16)
-        val base64Audio = Base64.encodeToString(wavData, Base64.NO_WRAP)
-        val langName = if (currentVoiceLang == "bn-BD") "Bangla" else "English"
-
-        executor.execute {
-            try {
-                val result = GemmaApi.transcribe(base64Audio, gemmaApiKey, langName)
-                handleTranscriptionResult(result)
-            } catch (e: Exception) {
-                handleTranscriptionError(e)
-            }
-        }
-    }
-
     // ── Lifecycle ────────────────────────────────────────────────
 
     fun stopRecording() {
@@ -180,10 +128,6 @@ class VoiceTranscriptionEngine(
         }
     }
 
-    /**
-     * Schedule automatic stop after [MAX_RECORD_SECONDS].
-     * Prevents infinite recording if user forgets to tap stop.
-     */
     private fun scheduleAutoStop(onAutoStop: () -> Unit) {
         audioHandler.postDelayed({
             if (recorder.isRecording) onAutoStop()

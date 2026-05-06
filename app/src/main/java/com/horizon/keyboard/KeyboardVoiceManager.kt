@@ -20,7 +20,7 @@ import com.horizon.keyboard.voice.VoiceLanguage
  *
  * Delegates to:
  * - [VoiceBar] for voice recording UI
- * - [VoiceEngineRouter] for engine selection (Whisper/Gemma/Android)
+ * - [VoiceEngineRouter] for engine selection (Whisper/Android)
  * - [VoiceSessionManager] for Android SpeechRecognizer lifecycle
  * - [VoiceTranscriptionEngine] for Whisper/Gemma API recording
  * - [VoiceCommandProcessor] for voice command interpretation
@@ -53,8 +53,7 @@ class KeyboardVoiceManager(
 
     private val engineRouter = VoiceEngineRouter(
         voiceEngine = voiceEngine,
-        getEngineType = { settingsPanel.voiceEngineType },
-        getCurrentLang = { currentVoiceLang }
+        getEngineType = { settingsPanel.voiceEngineType }
     )
 
     private val sessionManager = VoiceSessionManager(
@@ -132,7 +131,6 @@ class KeyboardVoiceManager(
         val (engine, warning) = engineRouter.resolveWithStatus()
         val engineLabel = when (engine) {
             VoiceEngineRouter.Engine.WHISPER -> "🎤 Whisper"
-            VoiceEngineRouter.Engine.GEMMA -> "🤖 Gemini"
             VoiceEngineRouter.Engine.ANDROID -> "📱 Android"
         }
         mainHandler.postDelayed({
@@ -140,7 +138,7 @@ class KeyboardVoiceManager(
                 voiceBar.updateStatus(warning, Colors.ACCENT_ORANGE)
                 mainHandler.postDelayed({
                     when (engine) {
-                        VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
+                        VoiceEngineRouter.Engine.WHISPER -> {
                             voiceBar.updateListeningState(true)
                             voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
                             engineRouter.startRecording(engine)
@@ -153,7 +151,7 @@ class KeyboardVoiceManager(
                 }, 1500)
             } else {
                 when (engine) {
-                    VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
+                    VoiceEngineRouter.Engine.WHISPER -> {
                         voiceBar.updateListeningState(true)
                         voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
                         engineRouter.startRecording(engine)
@@ -194,10 +192,9 @@ class KeyboardVoiceManager(
         userStoppedListening = true
         val engine = engineRouter.resolve()
         when (engine) {
-            VoiceEngineRouter.Engine.WHISPER, VoiceEngineRouter.Engine.GEMMA -> {
+            VoiceEngineRouter.Engine.WHISPER -> {
                 voiceBar.updateStatus("⏳ Transcribing...", Colors.ACCENT_ORANGE)
                 engineRouter.stopAndTranscribe(engine)
-                // Fallback: auto-hide after 15s if transcription hangs or errors
                 pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
                 pendingHideRunnable = Runnable { hideVoiceBar() }
                 mainHandler.postDelayed(pendingHideRunnable!!, 15_000L)
@@ -294,14 +291,13 @@ class KeyboardVoiceManager(
             val (engine, warning) = engineRouter.resolveWithStatus()
             val engineLabel = when (engine) {
                 VoiceEngineRouter.Engine.WHISPER -> "🎤 Whisper"
-                VoiceEngineRouter.Engine.GEMMA -> "🤖 Gemini"
                 VoiceEngineRouter.Engine.ANDROID -> "📱 Android"
             }
             if (warning != null) {
                 voiceBar.updateStatus(warning, Colors.ACCENT_ORANGE)
                 mainHandler.postDelayed({
                     when (engine) {
-                        VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
+                        VoiceEngineRouter.Engine.WHISPER -> {
                             voiceBar.updateListeningState(true)
                             voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
                             engineRouter.startRecording(engine)
@@ -314,7 +310,7 @@ class KeyboardVoiceManager(
                 }, 1500)
             } else {
                 when (engine) {
-                    VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
+                    VoiceEngineRouter.Engine.WHISPER -> {
                         voiceBar.updateListeningState(true)
                         voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
                         engineRouter.startRecording(engine)

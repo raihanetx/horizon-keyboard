@@ -26,13 +26,7 @@ import com.horizon.keyboard.ui.theme.Colors
 
 
 /**
- * Settings panel UI — voice engine selection, language, API keys, model selection.
- *
- * Pure UI component. Data persistence handled by [KeyboardPreferences] and [SecureKeyStore].
- *
- * @param context Android context.
- * @param voiceEngine Voice engine to configure.
- * @param onShowKeyboard Callback when settings panel is closed.
+ * Settings panel UI — voice engine selection, language, API keys.
  */
 class SettingsPanel(
     private val context: Context,
@@ -50,28 +44,22 @@ class SettingsPanel(
 
     private fun dp(value: Int): Int = Dimensions.dp(context, value)
 
-    // ─── Panel Creation ──────────────────────────────────────────
-
     fun createPanel(): ScrollView {
         val scrollView = ScrollView(context).apply {
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(320))
             setBackgroundColor(Color.parseColor(Colors.BG_DARK))
             visibility = View.GONE
         }
-
         val panel = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             val pad = dp(10)
             setPadding(pad, pad, pad, pad)
         }
-
         scrollView.addView(panel)
         this.panel = scrollView
         return scrollView
     }
-
-    // ─── Panel Visibility ────────────────────────────────────────
 
     fun show() {
         loadSettings()
@@ -79,16 +67,10 @@ class SettingsPanel(
         panel?.visibility = View.VISIBLE
     }
 
-    fun hide() {
-        panel?.visibility = View.GONE
-    }
+    fun hide() { panel?.visibility = View.GONE }
 
-    val isVisible: Boolean
-        get() = panel?.visibility == View.VISIBLE
+    val isVisible: Boolean get() = panel?.visibility == View.VISIBLE
 
-    // ─── Settings Persistence ────────────────────────────────────
-
-    /** Last error message from load/save operations, or null if successful. */
     var lastError: String? = null
         private set
 
@@ -96,12 +78,10 @@ class SettingsPanel(
         try {
             voiceEngineType = when (prefs.voiceEngine) {
                 KeyboardPreferences.ENGINE_WHISPER_GROQ -> VoiceEngineType.WHISPER_GROQ
-                KeyboardPreferences.ENGINE_GEMMA -> VoiceEngineType.GEMMA_API
                 KeyboardPreferences.ENGINE_AUTO -> VoiceEngineType.AUTO
                 else -> VoiceEngineType.ANDROID_BUILTIN
             }
             voiceEngine.groqApiKey = SecureKeyStore.getGroqKey(context)
-            voiceEngine.gemmaApiKey = SecureKeyStore.getGemmaKey(context)
             selectedLanguage = VoiceLanguage.fromName(prefs.selectedLanguage)
             voiceEngine.currentVoiceLang = selectedLanguage.gemmaCode
             lastError = null
@@ -111,18 +91,15 @@ class SettingsPanel(
         }
     }
 
-    /** @return true if settings were saved successfully, false on error. */
     fun saveSettings(): Boolean {
         return try {
             prefs.voiceEngine = when (voiceEngineType) {
                 VoiceEngineType.WHISPER_GROQ -> KeyboardPreferences.ENGINE_WHISPER_GROQ
-                VoiceEngineType.GEMMA_API -> KeyboardPreferences.ENGINE_GEMMA
                 VoiceEngineType.AUTO -> KeyboardPreferences.ENGINE_AUTO
                 else -> KeyboardPreferences.ENGINE_ANDROID
             }
             prefs.selectedLanguage = selectedLanguage.name
             if (voiceEngine.groqApiKey.isNotEmpty()) SecureKeyStore.setGroqKey(context, voiceEngine.groqApiKey)
-            if (voiceEngine.gemmaApiKey.isNotEmpty()) SecureKeyStore.setGemmaKey(context, voiceEngine.gemmaApiKey)
             lastError = null
             true
         } catch (e: Exception) {
@@ -131,8 +108,6 @@ class SettingsPanel(
             false
         }
     }
-
-    // ─── Panel Refresh ───────────────────────────────────────────
 
     fun refreshPanel() {
         val scrollView = panel ?: return
@@ -163,21 +138,18 @@ class SettingsPanel(
         panel.addView(sectionHeader("VOICE ENGINE"))
 
         val engines = listOf(
-            "auto" to "Auto (Best for each language)",
+            "auto" to "Auto (Whisper if key set, else Android)",
             "whisper_groq" to "Whisper via Groq (English)",
-            "gemma" to "Gemini Flash (Google AI Studio)",
             "android" to "Android Built-in (Offline)"
         )
         engines.forEach { (key, label) ->
             val isSelected = (key == "auto" && voiceEngineType == VoiceEngineType.AUTO) ||
                 (key == "whisper_groq" && voiceEngineType == VoiceEngineType.WHISPER_GROQ) ||
-                (key == "gemma" && voiceEngineType == VoiceEngineType.GEMMA_API) ||
                 (key == "android" && voiceEngineType == VoiceEngineType.ANDROID_BUILTIN)
             panel.addView(settingsOption(label, isSelected) {
                 voiceEngineType = when (key) {
                     "auto" -> VoiceEngineType.AUTO
                     "whisper_groq" -> VoiceEngineType.WHISPER_GROQ
-                    "gemma" -> VoiceEngineType.GEMMA_API
                     else -> VoiceEngineType.ANDROID_BUILTIN
                 }
                 saveSettings()
@@ -187,7 +159,6 @@ class SettingsPanel(
 
         // Language Selection
         panel.addView(sectionHeader("VOICE LANGUAGE"))
-
         VoiceLanguage.entries.forEach { lang ->
             panel.addView(settingsOption(
                 lang.displayName, voiceEngine.currentVoiceLang == lang.gemmaCode
@@ -209,21 +180,6 @@ class SettingsPanel(
         })
         panel.addView(TextView(context).apply {
             text = "🔒 Encrypted with Android Keystore · Free: 2,000 RPD"
-            setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
-            setPadding(dp(10), 0, 0, dp(4))
-        })
-
-        // Gemma API Key
-        panel.addView(sectionHeader("GOOGLE AI STUDIO API KEY (GEMINI)"))
-        val gemmaStatus = if (voiceEngine.gemmaApiKey.isNotEmpty()) "✓ Key saved (tap to edit)" else "Tap to add key..."
-        panel.addView(settingsOption(gemmaStatus, voiceEngine.gemmaApiKey.isNotEmpty()) {
-            val intent = Intent(context, ApiKeyActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        })
-        panel.addView(TextView(context).apply {
-            text = "🔒 Encrypted with Android Keystore · Free · Audio transcription"
             setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
             setPadding(dp(10), 0, 0, dp(4))
@@ -253,8 +209,6 @@ class SettingsPanel(
         panel.addView(closeRow)
     }
 
-    // ─── UI Components ───────────────────────────────────────────
-
     private fun sectionHeader(title: String): TextView {
         return TextView(context).apply {
             text = title
@@ -280,15 +234,12 @@ class SettingsPanel(
             }
             setOnClickListener { onClick() }
         }
-
         container.addView(TextView(context).apply {
             text = if (selected) "● $label" else "   $label"
             setTextColor(Color.parseColor(if (selected) Colors.ACCENT_BLUE else Colors.TEXT_SECONDARY))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         })
-
         return container
     }
-
 }

@@ -31,7 +31,6 @@ sealed class KeyboardMode {
      */
     enum class VoiceEngine {
         ANDROID_BUILTIN,
-        WHISPER_GROQ,
-        GEMMA_API
+        WHISPER_GROQ
     }
 }

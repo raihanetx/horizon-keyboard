@@ -15,19 +15,14 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import com.horizon.keyboard.data.KeyboardPreferences
 import com.horizon.keyboard.data.SecureKeyStore
 
 /**
- * Standalone Activity for editing API keys.
- *
- * Launched from the keyboard's settings panel. Uses a regular Activity window
- * so the system keyboard can type/paste into the fields normally.
+ * Standalone Activity for editing the Groq API key.
  */
 class ApiKeyActivity : Activity() {
 
     private lateinit var groqKeyInput: EditText
-    private lateinit var gemmaKeyInput: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,7 +52,7 @@ class ApiKeyActivity : Activity() {
         })
 
         content.addView(TextView(this).apply {
-            text = "Keys are encrypted with Android Keystore (AES-256-GCM)"
+            text = "Key is encrypted with Android Keystore (AES-256-GCM)"
             setTextColor(Color.parseColor("#8E8E93"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setPadding(0, 0, 0, dp(24))
@@ -74,19 +69,6 @@ class ApiKeyActivity : Activity() {
         groqKeyInput = editText("Enter Groq API key...")
         content.addView(groqKeyInput)
 
-        // Gemma API Key
-        content.addView(labelText("GOOGLE AI STUDIO API KEY (GEMMA)").apply {
-            setPadding(0, dp(20), 0, 0)
-        })
-        content.addView(TextView(this).apply {
-            text = "Free · Best for Bangla speech"
-            setTextColor(Color.parseColor("#636366"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
-            setPadding(dp(4), 0, 0, dp(8))
-        })
-        gemmaKeyInput = editText("Enter Google AI Studio API key...")
-        content.addView(gemmaKeyInput)
-
         scrollView.addView(content)
         root.addView(scrollView)
 
@@ -96,17 +78,15 @@ class ApiKeyActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(0, dp(16), 0, 0)
         }
-
         buttonRow.addView(button("Cancel", "#636366") { finish() })
-        buttonRow.addView(button("Save Keys", "#34C759") { saveKeys() })
-
+        buttonRow.addView(button("Save Key", "#34C759") { saveKey() })
         root.addView(buttonRow)
+
         setContentView(root)
 
-        // Load existing keys
-        loadKeys()
+        // Load existing key
+        loadKey()
 
-        // Auto-focus first field and show system keyboard
         groqKeyInput.requestFocus()
         groqKeyInput.postDelayed({
             val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
@@ -114,50 +94,40 @@ class ApiKeyActivity : Activity() {
         }, 300)
     }
 
-    private fun loadKeys() {
+    private fun loadKey() {
         try {
             val groqKey = SecureKeyStore.getGroqKey(this)
-            val gemmaKey = SecureKeyStore.getGemmaKey(this)
             if (groqKey.isNotEmpty()) {
                 groqKeyInput.setText(groqKey)
             }
-            if (gemmaKey.isNotEmpty()) {
-                gemmaKeyInput.setText(gemmaKey)
-            }
         } catch (e: Exception) {
-            Toast.makeText(this, "Could not load existing keys: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Could not load existing key: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun saveKeys() {
+    private fun saveKey() {
         val groqKey = groqKeyInput.text.toString().trim()
-        val gemmaKey = gemmaKeyInput.text.toString().trim()
 
-        if (groqKey.isEmpty() && gemmaKey.isEmpty()) {
-            Toast.makeText(this, "Enter at least one key", Toast.LENGTH_SHORT).show()
+        if (groqKey.isEmpty()) {
+            Toast.makeText(this, "Enter your Groq API key", Toast.LENGTH_SHORT).show()
             return
         }
 
         try {
-            if (groqKey.isNotEmpty()) SecureKeyStore.setGroqKey(this, groqKey)
-            if (gemmaKey.isNotEmpty()) SecureKeyStore.setGemmaKey(this, gemmaKey)
-            Toast.makeText(this, "✓ Keys saved!", Toast.LENGTH_SHORT).show()
+            SecureKeyStore.setGroqKey(this, groqKey)
+            Toast.makeText(this, "✓ Key saved!", Toast.LENGTH_SHORT).show()
             finish()
         } catch (e: Exception) {
-            // Try fallback: delete corrupted prefs and retry
             try {
                 getSharedPreferences("horizon_secure_keys", MODE_PRIVATE).edit().clear().apply()
-                if (groqKey.isNotEmpty()) SecureKeyStore.setGroqKey(this, groqKey)
-                if (gemmaKey.isNotEmpty()) SecureKeyStore.setGemmaKey(this, gemmaKey)
-                Toast.makeText(this, "✓ Keys saved! (storage reset)", Toast.LENGTH_SHORT).show()
+                SecureKeyStore.setGroqKey(this, groqKey)
+                Toast.makeText(this, "✓ Key saved! (storage reset)", Toast.LENGTH_SHORT).show()
                 finish()
             } catch (e2: Exception) {
                 Toast.makeText(this, "Failed to save: ${e2.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
-
-    // ─── UI Helpers ──────────────────────────────────────────────
 
     private fun labelText(text: String): TextView {
         return TextView(this).apply {

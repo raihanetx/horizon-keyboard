@@ -88,13 +88,8 @@ object SecureKeyStore {
     // ─── Convenience Methods for API Keys ────────────────────────
 
     private const val KEY_GROQ_API = "groq_api_key"
-    private const val KEY_GEMMA_API = "gemma_api_key"
 
     fun setGroqKey(context: Context, key: String) = putString(context, KEY_GROQ_API, key)
     fun getGroqKey(context: Context): String = getString(context, KEY_GROQ_API)
     fun hasGroqKey(context: Context): Boolean = hasKey(context, KEY_GROQ_API)
-
-    fun setGemmaKey(context: Context, key: String) = putString(context, KEY_GEMMA_API, key)
-    fun getGemmaKey(context: Context): String = getString(context, KEY_GEMMA_API)
-    fun hasGemmaKey(context: Context): Boolean = hasKey(context, KEY_GEMMA_API)
 }

@@ -6,39 +6,26 @@ import com.horizon.keyboard.voice.VoiceLanguage
 
 /**
  * Type-safe wrapper around SharedPreferences for keyboard settings.
- *
- * Handles all non-sensitive configuration:
- * - Voice engine type selection
- * - Language preference
- *
- * API keys are stored separately in [SecureKeyStore] (encrypted).
  */
 class KeyboardPreferences(context: Context) {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    // ─── Voice Engine Type ───────────────────────────────────────
-
     var voiceEngine: String
         get() = prefs.getString(KEY_VOICE_ENGINE, ENGINE_ANDROID) ?: ENGINE_ANDROID
         set(value) = prefs.edit().putString(KEY_VOICE_ENGINE, value).apply()
-
-    // ─── Language ────────────────────────────────────────────────
 
     var selectedLanguage: String
         get() = prefs.getString(KEY_SELECTED_LANGUAGE, VoiceLanguage.ENGLISH.name)
             ?: VoiceLanguage.ENGLISH.name
         set(value) = prefs.edit().putString(KEY_SELECTED_LANGUAGE, value).apply()
 
-    // ─── Constants ───────────────────────────────────────────────
-
     companion object {
         private const val PREFS_NAME = "horizon_keyboard"
 
         const val ENGINE_ANDROID = "android"
         const val ENGINE_WHISPER_GROQ = "whisper_groq"
-        const val ENGINE_GEMMA = "gemma"
         const val ENGINE_AUTO = "auto"
 
         private const val KEY_VOICE_ENGINE = "voice_engine"

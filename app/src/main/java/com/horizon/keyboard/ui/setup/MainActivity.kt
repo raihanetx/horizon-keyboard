@@ -57,8 +57,7 @@ fun HorizonSetupScreen() {
 
     // Voice engine credential status
     var hasGroqKey by remember { mutableStateOf(SecureKeyStore.hasGroqKey(context)) }
-    var hasGemmaKey by remember { mutableStateOf(SecureKeyStore.hasGemmaKey(context)) }
-    val hasAnyKey = hasGroqKey || hasGemmaKey
+    val hasAnyKey = hasGroqKey
 
     val micLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -206,7 +205,6 @@ fun HorizonSetupScreen() {
         ) {
             // Refresh key status when returning from ApiKeyActivity
             hasGroqKey = SecureKeyStore.hasGroqKey(context)
-            hasGemmaKey = SecureKeyStore.hasGemmaKey(context)
         }
 
         Button(
@@ -230,10 +228,7 @@ fun HorizonSetupScreen() {
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = if (hasAnyKey) {
-                    val parts = mutableListOf<String>()
-                    if (hasGroqKey) parts.add("Whisper ✓")
-                    if (hasGemmaKey) parts.add("Gemma ✓")
-                    "Step 4: Voice Engine — ${parts.joinToString(" · ")}"
+                    "Step 4: Voice Engine — Whisper ✓"
                 } else {
                     "Step 4: Setup Voice Engine Credentials"
                 },

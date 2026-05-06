@@ -57,10 +57,7 @@ class KeyboardModeTest {
     fun `voice mode with different engines are distinct`() {
         val v1 = KeyboardMode.Voice(KeyboardMode.VoiceEngine.ANDROID_BUILTIN)
         val v2 = KeyboardMode.Voice(KeyboardMode.VoiceEngine.WHISPER_GROQ)
-        val v3 = KeyboardMode.Voice(KeyboardMode.VoiceEngine.GEMMA_API)
         assertNotEquals(v1, v2)
-        assertNotEquals(v2, v3)
-        assertNotEquals(v1, v3)
     }
 
     @Test
@@ -98,7 +95,7 @@ class KeyboardModeTest {
             KeyboardMode.Symbol,
             KeyboardMode.Clipboard,
             KeyboardMode.Settings,
-            KeyboardMode.Voice(KeyboardMode.VoiceEngine.GEMMA_API)
+            KeyboardMode.Voice(KeyboardMode.VoiceEngine.WHISPER_GROQ)
         )
 
         val labels = modes.map { mode ->
