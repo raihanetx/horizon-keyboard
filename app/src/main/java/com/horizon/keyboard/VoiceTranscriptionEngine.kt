@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
+import android.util.Log
 import com.horizon.keyboard.voice.api.GemmaApi
 import com.horizon.keyboard.voice.api.WhisperApi
 import com.horizon.keyboard.voice.audio.AudioRecorder
@@ -71,10 +72,17 @@ class VoiceTranscriptionEngine(
         if (!recorder.isRecording) return
         val pcmData = recorder.stop()
 
+        Log.d("VoiceEngine", "Whisper: pcmData=${pcmData.size}B, groqKey=${groqApiKey.take(4)}..., lang=$currentVoiceLang")
+
         onStatusUpdate?.invoke("🎤 Whisper · Transcribing", "#FF9F0A")
 
         if (pcmData.isEmpty()) {
             onStatusUpdate?.invoke("No audio captured", null)
+            return
+        }
+
+        if (groqApiKey.isEmpty()) {
+            onStatusUpdate?.invoke("No Groq API key set!", null)
             return
         }
 
@@ -111,10 +119,17 @@ class VoiceTranscriptionEngine(
         if (!recorder.isRecording) return
         val pcmData = recorder.stop()
 
+        Log.d("VoiceEngine", "Gemma: pcmData=${pcmData.size}B, gemmaKey=${gemmaApiKey.take(4)}..., lang=$currentVoiceLang")
+
         onStatusUpdate?.invoke("🤖 Gemma · Transcribing", "#FF9F0A")
 
         if (pcmData.isEmpty()) {
             onStatusUpdate?.invoke("No audio captured", null)
+            return
+        }
+
+        if (gemmaApiKey.isEmpty()) {
+            onStatusUpdate?.invoke("No Google AI Studio API key set!", null)
             return
         }
 

@@ -1,5 +1,6 @@
 package com.horizon.keyboard.voice.api
 
+import android.util.Log
 import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -7,30 +8,17 @@ import java.net.URL
 
 /**
  * Google AI Studio Gemma API client for audio transcription.
- *
- * Sends Base64-encoded PCM audio to the Generative Language API.
- * Uses Gemma 4 models optimized for Bangla speech recognition.
- *
- * Thread-safe: each call is a standalone HTTP request.
  */
 object GemmaApi {
 
+    private const val TAG = "GemmaApi"
     private const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 15_000
     private const val MAX_RETRIES = 2
 
-    /**
-     * Transcribe Base64-encoded PCM audio via Gemma API.
-     *
-     * @param base64Audio Base64-encoded WAV audio data (PCM with WAV header).
-     * @param apiKey Google AI Studio API key.
-     * @param language Human-readable language name ("English" or "Bangla").
-     * @param model Model identifier (e.g. "gemma-4-e4b-it").
-     * @return Transcribed text, or empty string if no speech detected.
-     * @throws IOException on network errors or non-200 responses.
-     */
     fun transcribe(base64Audio: String, apiKey: String, language: String, model: String): String {
+        Log.d(TAG, "Transcribing: audio=${base64Audio.length}B base64, key=${apiKey.take(4)}..., lang=$language, model=$model")
         return withRetry(MAX_RETRIES) {
             callApi(base64Audio, apiKey, language, model)
         }
@@ -59,26 +47,33 @@ object GemmaApi {
         connection.outputStream.use { os -> os.write(jsonBody.toByteArray()) }
 
         val responseCode = connection.responseCode
+        Log.d(TAG, "Response code: $responseCode")
+
         return when {
             responseCode == 200 -> {
-                parseTranscriptionResult(connection.inputStream.bufferedReader().readText())
+                val result = parseTranscriptionResult(connection.inputStream.bufferedReader().readText())
+                Log.d(TAG, "Result: ${result.take(100)}")
+                result
+            }
+            responseCode == 400 -> {
+                val errorBody = try { connection.errorStream?.bufferedReader()?.readText()?.take(300) } catch (_: Exception) { null }
+                Log.e(TAG, "Bad request (400): $errorBody")
+                throw IOException("Invalid request (400). Check your API key and model.")
+            }
+            responseCode == 401, responseCode == 403 -> {
+                throw IOException("Access denied ($responseCode). Check your Google AI Studio API key.")
             }
             responseCode == 429 -> {
-                throw IOException("Rate limited (429) — try again later")
+                throw IOException("Rate limited (429). Try again later.")
             }
             else -> {
-                val errorBody = try {
-                    connection.errorStream?.bufferedReader()?.readText()?.take(200)
-                } catch (_: Exception) { null }
+                val errorBody = try { connection.errorStream?.bufferedReader()?.readText()?.take(300) } catch (_: Exception) { null }
+                Log.e(TAG, "API error $responseCode: $errorBody")
                 throw IOException("Gemma API error $responseCode: ${errorBody ?: "unknown"}")
             }
         }
     }
 
-    /**
-     * Parse the transcription text from Gemma's JSON response.
-     * Response format: {"candidates":[{"content":{"parts":[{"text":"..."}]}}]}
-     */
     private fun parseTranscriptionResult(response: String): String {
         return try {
             val json = JSONObject(response)
@@ -94,22 +89,17 @@ object GemmaApi {
         }
     }
 
-    /**
-     * Retry wrapper with linear backoff (1s, 2s, ...).
-     * Only retries on [IOException] (network/timeout errors).
-     * Empty results (no speech detected) are returned immediately without retry.
-     */
     private fun withRetry(maxRetries: Int, block: () -> String): String {
         var lastException: IOException? = null
         repeat(maxRetries + 1) { attempt ->
             try {
-                val result = block()
-                return result
+                return block()
             } catch (e: IOException) {
                 lastException = e
+                Log.w(TAG, "Attempt ${attempt + 1} failed: ${e.message}")
                 if (attempt < maxRetries) Thread.sleep(1000L * (attempt + 1))
             }
         }
-        throw lastException ?: IOException("Gemma transcription failed after ${maxRetries + 1} attempts")
+        throw lastException ?: IOException("Gemma transcription failed")
     }
 }
