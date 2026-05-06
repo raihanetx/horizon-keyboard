@@ -100,21 +100,21 @@ class HeaderBar(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
-                Dimensions.dp(context, 36),
-                Dimensions.dp(context, 32)
+                Dimensions.dp(context, 32),
+                Dimensions.dp(context, 28)
             ).apply {
-                marginStart = Dimensions.dp(context, 3)
-                marginEnd = Dimensions.dp(context, 3)
+                marginStart = Dimensions.dp(context, 1)
+                marginEnd = Dimensions.dp(context, 1)
             }
-            val p = Dimensions.dp(context, 6)
+            val p = Dimensions.dp(context, 5)
             setPadding(p, p, p, p)
             background = Drawables.pillBg(Colors.BG_PILL)
         }
 
         val iconView = ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(
-                Dimensions.dp(context, 18),
-                Dimensions.dp(context, 18)
+                Dimensions.dp(context, 16),
+                Dimensions.dp(context, 16)
             )
             setImageResource(drawableRes)
             scaleType = ImageView.ScaleType.FIT_CENTER
