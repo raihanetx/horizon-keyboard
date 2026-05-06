@@ -129,22 +129,39 @@ class KeyboardVoiceManager(
         muteSystemSounds()
         hideHeaderShowVoiceBar()
 
-        val engine = engineRouter.resolve()
+        val (engine, warning) = engineRouter.resolveWithStatus()
         val engineLabel = when (engine) {
             VoiceEngineRouter.Engine.WHISPER -> "🎤 Whisper"
             VoiceEngineRouter.Engine.GEMMA -> "🤖 Gemma"
             VoiceEngineRouter.Engine.ANDROID -> "📱 Android"
         }
         mainHandler.postDelayed({
-            when (engine) {
-                VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
-                    voiceBar.updateListeningState(true)
-                    voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
-                    engineRouter.startRecording(engine)
-                }
-                VoiceEngineRouter.Engine.ANDROID -> {
-                    sessionManager.language = currentVoiceLang
-                    sessionManager.start()
+            if (warning != null) {
+                voiceBar.updateStatus(warning, Colors.ACCENT_ORANGE)
+                mainHandler.postDelayed({
+                    when (engine) {
+                        VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
+                            voiceBar.updateListeningState(true)
+                            voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
+                            engineRouter.startRecording(engine)
+                        }
+                        VoiceEngineRouter.Engine.ANDROID -> {
+                            sessionManager.language = currentVoiceLang
+                            sessionManager.start()
+                        }
+                    }
+                }, 1500)
+            } else {
+                when (engine) {
+                    VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
+                        voiceBar.updateListeningState(true)
+                        voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
+                        engineRouter.startRecording(engine)
+                    }
+                    VoiceEngineRouter.Engine.ANDROID -> {
+                        sessionManager.language = currentVoiceLang
+                        sessionManager.start()
+                    }
                 }
             }
         }, FADE_DURATION + 100)
@@ -274,21 +291,38 @@ class KeyboardVoiceManager(
             // Start listening
             userStoppedListening = false
             muteSystemSounds()
-            val engine = engineRouter.resolve()
+            val (engine, warning) = engineRouter.resolveWithStatus()
             val engineLabel = when (engine) {
                 VoiceEngineRouter.Engine.WHISPER -> "🎤 Whisper"
                 VoiceEngineRouter.Engine.GEMMA -> "🤖 Gemma"
                 VoiceEngineRouter.Engine.ANDROID -> "📱 Android"
             }
-            when (engine) {
-                VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
-                    voiceBar.updateListeningState(true)
-                    voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
-                    engineRouter.startRecording(engine)
-                }
-                VoiceEngineRouter.Engine.ANDROID -> {
-                    sessionManager.language = currentVoiceLang
-                    sessionManager.start()
+            if (warning != null) {
+                voiceBar.updateStatus(warning, Colors.ACCENT_ORANGE)
+                mainHandler.postDelayed({
+                    when (engine) {
+                        VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
+                            voiceBar.updateListeningState(true)
+                            voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
+                            engineRouter.startRecording(engine)
+                        }
+                        VoiceEngineRouter.Engine.ANDROID -> {
+                            sessionManager.language = currentVoiceLang
+                            sessionManager.start()
+                        }
+                    }
+                }, 1500)
+            } else {
+                when (engine) {
+                    VoiceEngineRouter.Engine.GEMMA, VoiceEngineRouter.Engine.WHISPER -> {
+                        voiceBar.updateListeningState(true)
+                        voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
+                        engineRouter.startRecording(engine)
+                    }
+                    VoiceEngineRouter.Engine.ANDROID -> {
+                        sessionManager.language = currentVoiceLang
+                        sessionManager.start()
+                    }
                 }
             }
         } else {

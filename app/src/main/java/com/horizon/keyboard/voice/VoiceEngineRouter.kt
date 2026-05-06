@@ -33,25 +33,35 @@ class VoiceEngineRouter(
      *
      * @return The engine to use, considering settings, language, and API key availability.
      */
-    fun resolve(): Engine {
+    fun resolve(): Engine = resolveWithStatus().first
+
+    /**
+     * Resolve engine and return a user-facing warning if the selected engine
+     * fell back to Android due to a missing API key.
+     *
+     * @return Pair of (engine, optional warning message).
+     */
+    fun resolveWithStatus(): Pair<Engine, String?> {
         val engineType = getEngineType()
         val lang = getCurrentLang()
 
         return when (engineType) {
             VoiceEngineType.GEMMA_API -> {
-                if (voiceEngine.gemmaApiKey.isNotEmpty()) Engine.GEMMA else Engine.ANDROID
+                if (voiceEngine.gemmaApiKey.isNotEmpty()) Engine.GEMMA to null
+                else Engine.ANDROID to "⚠️ Gemma API key not set — using Android built-in"
             }
             VoiceEngineType.WHISPER_GROQ -> {
-                if (voiceEngine.groqApiKey.isNotEmpty()) Engine.WHISPER else Engine.ANDROID
+                if (voiceEngine.groqApiKey.isNotEmpty()) Engine.WHISPER to null
+                else Engine.ANDROID to "⚠️ Groq API key not set — using Android built-in"
             }
             VoiceEngineType.AUTO -> {
                 when {
-                    lang == VoiceLanguage.BANGLA.gemmaCode && voiceEngine.gemmaApiKey.isNotEmpty() -> Engine.GEMMA
-                    voiceEngine.groqApiKey.isNotEmpty() -> Engine.WHISPER
-                    else -> Engine.ANDROID
+                    lang == VoiceLanguage.BANGLA.gemmaCode && voiceEngine.gemmaApiKey.isNotEmpty() -> Engine.GEMMA to null
+                    voiceEngine.groqApiKey.isNotEmpty() -> Engine.WHISPER to null
+                    else -> Engine.ANDROID to null
                 }
             }
-            VoiceEngineType.ANDROID_BUILTIN -> Engine.ANDROID
+            VoiceEngineType.ANDROID_BUILTIN -> Engine.ANDROID to null
         }
     }
 
