@@ -8,7 +8,7 @@ import org.json.JSONArray
  * Persistent repository for clipboard history and saved clips.
  *
  * Two lists:
- * - **History**: auto-tracked clipboard entries (max 50), persisted via SharedPreferences
+ * - **History**: auto-tracked clipboard entries (last 7), persisted via SharedPreferences
  * - **Saved**: user-bookmarked clips (persistent until manually cleared)
  *
  * Deduplication: checks the ENTIRE history, not just the first item.
@@ -142,6 +142,6 @@ class ClipboardRepository(context: Context) {
         private const val PREFS_NAME = "horizon_clipboard"
         private const val KEY_HISTORY = "clipboard_history"
         private const val KEY_SAVED = "clipboard_saved"
-        const val MAX_HISTORY_SIZE = 50
+        const val MAX_HISTORY_SIZE = 7
     }
 }
