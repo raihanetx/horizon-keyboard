@@ -16,7 +16,7 @@ object GemmaApi {
 
     private const val TAG = "GemmaApi"
     private const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-    private const val MODEL = "gemini-2.5-flash"
+    private const val MODEL = "gemini-2.5-flash-lite"
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 30_000
     private const val MAX_RETRIES = 2
