@@ -7,6 +7,7 @@ import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.horizon.keyboard.ui.theme.Colors
