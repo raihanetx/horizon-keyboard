@@ -16,16 +16,10 @@ android {
     }
 
     buildTypes {
-        debug {
-            val ks = file("horizon-release.jks")
-            if (ks.exists()) {
-                signingConfig = signingConfigs.create("ci") {
-                    storeFile = ks
-                    storePassword = "horizon123"
-                    keyAlias = "horizon"
-                    keyPassword = "horizon123"
-                }
-            }
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
