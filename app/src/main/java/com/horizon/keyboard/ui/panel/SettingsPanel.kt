@@ -20,6 +20,7 @@ import com.horizon.keyboard.VoiceTranscriptionEngine
 import com.horizon.keyboard.core.VoiceEngineType
 import com.horizon.keyboard.data.KeyboardPreferences
 import com.horizon.keyboard.data.SecureKeyStore
+import com.horizon.keyboard.voice.api.WhisperApi
 import com.horizon.keyboard.ui.setup.ApiKeyActivity
 import com.horizon.keyboard.ui.theme.Dimensions
 import com.horizon.keyboard.ui.theme.Colors
@@ -84,6 +85,13 @@ class SettingsPanel(
             voiceEngine.groqApiKey = SecureKeyStore.getGroqKey(context)
             selectedLanguage = VoiceLanguage.fromName(prefs.selectedLanguage)
             voiceEngine.currentVoiceLang = selectedLanguage.localeCode
+
+            // Load Whisper model preference
+            val savedModel = prefs.whisperModel
+            if (savedModel.isNotEmpty()) {
+                voiceEngine.whisperModel = WhisperApi.Model.fromId(savedModel)
+            }
+
             lastError = null
         } catch (e: Exception) {
             Log.e("SettingsPanel", "Failed to load settings", e)
@@ -168,6 +176,23 @@ class SettingsPanel(
                 saveSettings()
                 refreshPanel()
             })
+        }
+
+        // Whisper Model Selection (only shown when Whisper is active)
+        if (voiceEngineType == VoiceEngineType.WHISPER_GROQ || voiceEngineType == VoiceEngineType.AUTO) {
+            panel.addView(sectionHeader("WHISPER MODEL"))
+            WhisperApi.Model.entries.forEach { model ->
+                val isSelected = voiceEngine.whisperModel == model
+                panel.addView(settingsOption(
+                    "${model.displayName} (${model.speedLabel})",
+                    isSelected
+                ) {
+                    voiceEngine.whisperModel = model
+                    prefs.whisperModel = model.id
+                    saveSettings()
+                    refreshPanel()
+                })
+            }
         }
 
         // Groq API Key

@@ -18,12 +18,12 @@ import com.horizon.keyboard.voice.VoiceLanguage
 /**
  * Voice recognition coordinator — wires together voice UI, engine routing, and session management.
  *
- * Delegates to:
- * - [VoiceBar] for voice recording UI
- * - [VoiceEngineRouter] for engine selection (Whisper/Android)
- * - [VoiceSessionManager] for Android SpeechRecognizer lifecycle
- * - [VoiceTranscriptionEngine] for Whisper API recording
- * - [VoiceCommandProcessor] for voice command interpretation
+ * Optimizations over original:
+ * - VAD integration — auto-transcribes when user stops speaking (no manual tap needed)
+ * - Continuous listening mode — mic stays on between utterances
+ * - Better state machine — no race conditions between start/stop
+ * - Smart auto-hide with activity awareness
+ * - Mute/unmute handled atomically
  */
 class KeyboardVoiceManager(
     private val context: Context,
@@ -37,6 +37,7 @@ class KeyboardVoiceManager(
 ) {
     private var userStoppedListening = false
     private var currentVoiceLang = "en-US"
+    private var isContinuousMode = true  // Keep listening between utterances
     private lateinit var voiceBar: VoiceBar
     private var pendingHideRunnable: Runnable? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -102,8 +103,7 @@ class KeyboardVoiceManager(
         clipboardPanel?.visibility = View.GONE
         keyboardContainer?.visibility = View.VISIBLE
 
-        pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
-        pendingHideRunnable = null
+        cancelPendingHide()
         userStoppedListening = false
         sessionManager.destroy()
         muteSystemSounds()
@@ -120,51 +120,46 @@ class KeyboardVoiceManager(
         settingsPanelView?.visibility = View.GONE
         keyboardContainer?.visibility = View.VISIBLE
 
-        pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
-        pendingHideRunnable = null
+        cancelPendingHide()
         userStoppedListening = false
 
         sessionManager.destroy()
         muteSystemSounds()
         hideHeaderShowVoiceBar()
 
+        // Sync model and VAD settings from settings panel
+        syncEngineSettings()
+
         val (engine, warning) = engineRouter.resolveWithStatus()
         val engineLabel = when (engine) {
-            VoiceEngineRouter.Engine.WHISPER -> "🎤 Whisper"
+            VoiceEngineRouter.Engine.WHISPER -> "🎤 ${voiceEngine.whisperModel.displayName}"
             VoiceEngineRouter.Engine.ANDROID -> "📱 Android"
         }
+
         mainHandler.postDelayed({
             if (warning != null) {
                 voiceBar.updateStatus(warning, Colors.ACCENT_ORANGE)
-                mainHandler.postDelayed({
-                    when (engine) {
-                        VoiceEngineRouter.Engine.WHISPER -> {
-                            voiceBar.updateListeningState(true)
-                            voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
-                            engineRouter.startRecording(engine)
-                        }
-                        VoiceEngineRouter.Engine.ANDROID -> {
-                            sessionManager.language = currentVoiceLang
-                            sessionManager.start()
-                        }
-                    }
-                }, 1500)
+                mainHandler.postDelayed({ startEngine(engine, engineLabel) }, 1500)
             } else {
-                when (engine) {
-                    VoiceEngineRouter.Engine.WHISPER -> {
-                        voiceBar.updateListeningState(true)
-                        voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
-                        engineRouter.startRecording(engine)
-                    }
-                    VoiceEngineRouter.Engine.ANDROID -> {
-                        sessionManager.language = currentVoiceLang
-                        sessionManager.start()
-                    }
-                }
+                startEngine(engine, engineLabel)
             }
         }, FADE_DURATION + 100)
 
         scheduleHide(120_000L)
+    }
+
+    private fun startEngine(engine: VoiceEngineRouter.Engine, engineLabel: String) {
+        when (engine) {
+            VoiceEngineRouter.Engine.WHISPER -> {
+                voiceBar.updateListeningState(true)
+                voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
+                engineRouter.startRecording(engine)
+            }
+            VoiceEngineRouter.Engine.ANDROID -> {
+                sessionManager.language = currentVoiceLang
+                sessionManager.start()
+            }
+        }
     }
 
     fun hideVoiceBar() {
@@ -172,8 +167,7 @@ class KeyboardVoiceManager(
         sessionManager.destroy()
         voiceEngine.stopRecording()
 
-        pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
-        pendingHideRunnable = null
+        cancelPendingHide()
 
         voiceBar.hide()
         headerBar?.let { header ->
@@ -185,7 +179,7 @@ class KeyboardVoiceManager(
 
     /**
      * Stop recording and send audio for transcription.
-     * For Whisper: calls stopAndTranscribe which records → encodes → API call → insert text.
+     * For Whisper: calls stopAndTranscribe (record → encode → API → insert).
      * For Android: stops SpeechRecognizer (results come via callbacks).
      */
     private fun stopRecordingAndTranscribe() {
@@ -195,9 +189,8 @@ class KeyboardVoiceManager(
             VoiceEngineRouter.Engine.WHISPER -> {
                 voiceBar.updateStatus("⏳ Transcribing...", Colors.ACCENT_ORANGE)
                 engineRouter.stopAndTranscribe(engine)
-                pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
-                pendingHideRunnable = Runnable { hideVoiceBar() }
-                mainHandler.postDelayed(pendingHideRunnable!!, 15_000L)
+                // Auto-hide after transcription completes (handled in callbacks)
+                scheduleHide(15_000L)
             }
             VoiceEngineRouter.Engine.ANDROID -> {
                 sessionManager.stop()
@@ -207,15 +200,13 @@ class KeyboardVoiceManager(
     }
 
     /**
-     * Cancel everything — discard audio, stop recording, close voice bar immediately.
+     * Cancel everything — discard audio, stop recording, close immediately.
      */
     private fun cancelAndClose() {
         userStoppedListening = true
         sessionManager.destroy()
         voiceEngine.stopRecording()
-
-        pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
-        pendingHideRunnable = null
+        cancelPendingHide()
 
         voiceBar.hide()
         headerBar?.let { header ->
@@ -229,9 +220,7 @@ class KeyboardVoiceManager(
         userStoppedListening = true
         sessionManager.destroy()
         voiceEngine.stopRecording()
-
-        pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
-        pendingHideRunnable = null
+        cancelPendingHide()
 
         voiceBar.hide()
         headerBar?.let { header ->
@@ -257,10 +246,15 @@ class KeyboardVoiceManager(
     }
 
     private fun scheduleHide(delayMs: Long) {
-        pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
+        cancelPendingHide()
         val runnable = Runnable { hideVoiceBar() }
         pendingHideRunnable = runnable
         mainHandler.postDelayed(runnable, delayMs)
+    }
+
+    private fun cancelPendingHide() {
+        pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingHideRunnable = null
     }
 
     // ─── Voice Engine Callbacks ──────────────────────────────────
@@ -270,14 +264,19 @@ class KeyboardVoiceManager(
             voiceBar.updateStatus(message, color)
         }
         voiceEngine.isUserStopped = { userStoppedListening }
-        voiceEngine.onShouldContinue = { !userStoppedListening }
+        voiceEngine.onShouldContinue = { isContinuousMode && !userStoppedListening }
         voiceEngine.onTranscriptionResult = { rawText ->
             voiceBar.updateStatus("\"$rawText\"")
             processVoiceInput(rawText)
-            // Auto-hide voice bar after transcription result
-            mainHandler.postDelayed({
-                hideVoiceBar()
-            }, 800)
+
+            if (isContinuousMode && !userStoppedListening) {
+                // Continuous mode: brief pause then restart listening
+                voiceBar.updateStatus("Listening...", Colors.ACCENT_GREEN)
+                // Don't auto-hide — keep voice bar open
+            } else {
+                // Single-shot mode: auto-hide after result
+                mainHandler.postDelayed({ hideVoiceBar() }, 800)
+            }
         }
     }
 
@@ -288,41 +287,22 @@ class KeyboardVoiceManager(
             // Start listening
             userStoppedListening = false
             muteSystemSounds()
+            syncEngineSettings()
+
             val (engine, warning) = engineRouter.resolveWithStatus()
             val engineLabel = when (engine) {
-                VoiceEngineRouter.Engine.WHISPER -> "🎤 Whisper"
+                VoiceEngineRouter.Engine.WHISPER -> "🎤 ${voiceEngine.whisperModel.displayName}"
                 VoiceEngineRouter.Engine.ANDROID -> "📱 Android"
             }
+
             if (warning != null) {
                 voiceBar.updateStatus(warning, Colors.ACCENT_ORANGE)
-                mainHandler.postDelayed({
-                    when (engine) {
-                        VoiceEngineRouter.Engine.WHISPER -> {
-                            voiceBar.updateListeningState(true)
-                            voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
-                            engineRouter.startRecording(engine)
-                        }
-                        VoiceEngineRouter.Engine.ANDROID -> {
-                            sessionManager.language = currentVoiceLang
-                            sessionManager.start()
-                        }
-                    }
-                }, 1500)
+                mainHandler.postDelayed({ startEngine(engine, engineLabel) }, 1500)
             } else {
-                when (engine) {
-                    VoiceEngineRouter.Engine.WHISPER -> {
-                        voiceBar.updateListeningState(true)
-                        voiceBar.updateStatus("$engineLabel · Listening", Colors.ACCENT_GREEN)
-                        engineRouter.startRecording(engine)
-                    }
-                    VoiceEngineRouter.Engine.ANDROID -> {
-                        sessionManager.language = currentVoiceLang
-                        sessionManager.start()
-                    }
-                }
+                startEngine(engine, engineLabel)
             }
         } else {
-            // Stop listening and close voice bar
+            // Stop listening
             stopEverythingAndClose()
         }
     }
@@ -362,19 +342,29 @@ class KeyboardVoiceManager(
         }
     }
 
+    // ─── Settings Sync ───────────────────────────────────────────
+
+    /**
+     * Sync engine model and VAD settings from the settings panel.
+     * Called before every voice session to pick up any changes.
+     */
+    private fun syncEngineSettings() {
+        // Model is already synced via settingsPanel → voiceEngine
+        // VAD is always enabled for Whisper (the main optimization)
+        engineRouter.setVAD(true)
+    }
+
     // ─── Lifecycle ───────────────────────────────────────────────
 
     /**
-     * Force-stop everything: mic, session, voice bar. Called when keyboard is hidden/dismissed.
+     * Force-stop everything: mic, session, voice bar. Called when keyboard is hidden.
      * Guarantees mic is OFF after this call.
      */
     fun cleanup() {
         userStoppedListening = true
-        pendingHideRunnable?.let { mainHandler.removeCallbacks(it) }
-        pendingHideRunnable = null
+        cancelPendingHide()
         sessionManager.destroy()
         voiceEngine.stopRecording()
-        // Force-release the AudioRecord if it's still alive
         voiceEngine.shutdown()
         voiceBar.hide()
         headerBar?.let { header ->

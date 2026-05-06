@@ -2,14 +2,17 @@ package com.horizon.keyboard.voice
 
 import com.horizon.keyboard.VoiceTranscriptionEngine
 import com.horizon.keyboard.core.VoiceEngineType
+import com.horizon.keyboard.voice.api.WhisperApi
 
 /**
  * Routes voice recording to the correct engine based on settings and API key availability.
  *
  * Engines:
- * - **Whisper** — Groq Whisper API (English specialist)
+ * - **Whisper** — Groq Whisper API (cloud, high accuracy)
  * - **Android** — Offline fallback (SpeechRecognizer)
  * - **Auto** — Uses Whisper if key available, else Android
+ *
+ * Now supports configurable model selection and VAD toggle.
  */
 class VoiceEngineRouter(
     private val voiceEngine: VoiceTranscriptionEngine,
@@ -53,5 +56,17 @@ class VoiceEngineRouter(
             Engine.WHISPER -> voiceEngine.stopWhisperAndTranscribe()
             Engine.ANDROID -> { /* Handled by VoiceSessionManager */ }
         }
+    }
+
+    // ── Configuration Pass-Through ───────────────────────────────
+
+    /** Set the Whisper model. */
+    fun setModel(model: WhisperApi.Model) {
+        voiceEngine.whisperModel = model
+    }
+
+    /** Enable/disable VAD (silence auto-stop). */
+    fun setVAD(enabled: Boolean) {
+        voiceEngine.vadEnabled = enabled
     }
 }

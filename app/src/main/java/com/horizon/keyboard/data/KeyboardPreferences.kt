@@ -21,6 +21,10 @@ class KeyboardPreferences(context: Context) {
             ?: VoiceLanguage.ENGLISH.name
         set(value) = prefs.edit().putString(KEY_SELECTED_LANGUAGE, value).apply()
 
+    var whisperModel: String
+        get() = prefs.getString(KEY_WHISPER_MODEL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_WHISPER_MODEL, value).apply()
+
     companion object {
         private const val PREFS_NAME = "horizon_keyboard"
 
@@ -30,5 +34,6 @@ class KeyboardPreferences(context: Context) {
 
         private const val KEY_VOICE_ENGINE = "voice_engine"
         private const val KEY_SELECTED_LANGUAGE = "selected_language"
+        private const val KEY_WHISPER_MODEL = "whisper_model"
     }
 }
