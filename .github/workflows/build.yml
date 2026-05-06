@@ -39,7 +39,7 @@ jobs:
             -dname "CN=Horizon Keyboard, OU=Dev, O=Horizon, L=Unknown, ST=Unknown, C=US"
 
       - name: Build Debug APK (signed)
-        run: ./gradlew assembleDebug
+        run: ./gradlew clean assembleDebug
 
       - name: Upload APK for release
         uses: actions/upload-artifact@v4

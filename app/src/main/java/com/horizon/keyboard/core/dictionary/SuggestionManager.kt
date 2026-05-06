@@ -7,14 +7,14 @@ import android.util.Log
  * Orchestrates all prediction engines to provide intelligent word suggestions.
  *
  * Combines three layers:
- * 1. **DictionaryEngine** — 10K words with frequency (prefix matching)
- * 2. **UserDictionaryEngine** — learns YOUR words (personal frequency)
- * 3. **BigramEngine** — learns word pairs ("good" → "morning")
+ * 1. **DictionaryEngine**  -  10K words with frequency (prefix matching)
+ * 2. **UserDictionaryEngine**  -  learns YOUR words (personal frequency)
+ * 3. **BigramEngine**  -  learns word pairs ("good"  ->  "morning")
  *
  * Scoring formula:
- *   finalScore = (dictFreq × 0.3) + (userFreq × 0.5) + (bigramBonus × 0.2)
+ *   finalScore = (dictFreq x 0.3) + (userFreq x 0.5) + (bigramBonus x 0.2)
  *
- * This mimics how Gboard/SwiftKey rank suggestions — user behavior
+ * This mimics how Gboard/SwiftKey rank suggestions  -  user behavior
  * dominates, context (previous word) boosts, dictionary is baseline.
  */
 class SuggestionManager {
@@ -37,7 +37,7 @@ class SuggestionManager {
         private const val MIN_LEARN_LENGTH = 2
     }
 
-    // ── Engines ──────────────────────────────────────────────────
+    // -- Engines --------------------------------------------------
 
     private val dictionary = DictionaryEngine()
     private val userDictionary = UserDictionaryEngine()
@@ -47,13 +47,13 @@ class SuggestionManager {
     val isReady: Boolean
         get() = dictionary.isLoaded
 
-    // ── Initialization ───────────────────────────────────────────
+    // -- Initialization -------------------------------------------
 
     private var appContext: Context? = null
 
     /**
      * Load all engines. Call once on keyboard startup.
-     * Thread-safe — loads sequentially, reads are lock-free after.
+     * Thread-safe  -  loads sequentially, reads are lock-free after.
      */
     fun initialize(context: Context) {
         appContext = context.applicationContext
@@ -63,7 +63,7 @@ class SuggestionManager {
         Log.i(TAG, "Initialized: dict=$dictCount, user=$userCount, bigrams=$bigramCount")
     }
 
-    // ── Suggestion API ───────────────────────────────────────────
+    // -- Suggestion API -------------------------------------------
 
     /**
      * Get word suggestions based on current input and context.
@@ -131,9 +131,13 @@ class SuggestionManager {
      * Call on keyboard hide/destroy to prevent data loss.
      */
     fun saveAll() {
-        // These are no-ops if nothing changed, but safe to call
-        userDictionary.save(getAppContext())
-        bigram.save(getAppContext())
+        val ctx = appContext ?: return
+        try {
+            userDictionary.save(ctx)
+            bigram.save(ctx)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to save user data", e)
+        }
     }
 
     /**
@@ -145,11 +149,11 @@ class SuggestionManager {
         saveAll()
     }
 
-    // ── Private: Core Prediction Logic ───────────────────────────
+    // -- Private: Core Prediction Logic ---------------------------
 
     /**
      * Prefix-based suggestions with context boosting and fuzzy fallback.
-     * This is the main prediction path — called on every keystroke.
+     * This is the main prediction path  -  called on every keystroke.
      */
     private fun getPrefixSuggestions(
         prefix: String,
@@ -183,7 +187,7 @@ class SuggestionManager {
                 if (!candidates.containsKey(word)) {
                     val dictFreq = dictionary.getFrequency(word).toDouble()
                     val normalizedFreq = normalizeFrequency(dictFreq, 100000.0)
-                    // Fuzzy matches get a penalty (×0.4) — they're guesses, not exact
+                    // Fuzzy matches get a penalty (x0.4)  -  they're guesses, not exact
                     candidates[word] = normalizedFreq * WEIGHT_DICT * 0.4
                 }
             }
@@ -230,7 +234,7 @@ class SuggestionManager {
         return userDictionary.getTopWords(limit)
     }
 
-    // ── Helpers ──────────────────────────────────────────────────
+    // -- Helpers --------------------------------------------------
 
     /**
      * Normalize a frequency value to 0.0 - 1.0 range.
@@ -242,12 +246,4 @@ class SuggestionManager {
     }
 
     private var pendingSaves = 0
-
-    /**
-     * Get app context for saving. Uses a stored reference.
-     * Set during initialize().
-     */
-    private fun getAppContext(): Context {
-        return appContext ?: throw IllegalStateException("SuggestionManager not initialized")
-    }
 }
