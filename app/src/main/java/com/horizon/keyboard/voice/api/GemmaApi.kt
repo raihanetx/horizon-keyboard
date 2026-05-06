@@ -7,25 +7,29 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Google AI Studio Gemma API client for audio transcription.
+ * Google AI Studio API client for audio transcription using Gemini 2.5 Flash.
+ *
+ * Uses the Gemini API (not Gemma) because Gemma 4 models available via the API
+ * do not support audio input. Gemini 2.5 Flash is free and supports audio natively.
  */
 object GemmaApi {
 
     private const val TAG = "GemmaApi"
     private const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-    private const val CONNECT_TIMEOUT_MS = 10_000
-    private const val READ_TIMEOUT_MS = 15_000
+    private const val MODEL = "gemini-2.5-flash"
+    private const val CONNECT_TIMEOUT_MS = 15_000
+    private const val READ_TIMEOUT_MS = 30_000
     private const val MAX_RETRIES = 2
 
-    fun transcribe(base64Audio: String, apiKey: String, language: String, model: String): String {
-        Log.d(TAG, "Transcribing: audio=${base64Audio.length}B base64, key=${apiKey.take(4)}..., lang=$language, model=$model")
+    fun transcribe(base64Audio: String, apiKey: String, language: String): String {
+        Log.d(TAG, "Transcribing: audio=${base64Audio.length}B base64, key=${apiKey.take(4)}..., lang=$language, model=$MODEL")
         return withRetry(MAX_RETRIES) {
-            callApi(base64Audio, apiKey, language, model)
+            callApi(base64Audio, apiKey, language)
         }
     }
 
-    private fun callApi(base64Audio: String, apiKey: String, language: String, model: String): String {
-        val url = URL("$BASE_URL/$model:generateContent?key=$apiKey")
+    private fun callApi(base64Audio: String, apiKey: String, language: String): String {
+        val url = URL("$BASE_URL/$MODEL:generateContent?key=$apiKey")
         val jsonBody = """
         {
             "contents": [{

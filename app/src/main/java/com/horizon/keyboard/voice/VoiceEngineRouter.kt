@@ -8,7 +8,7 @@ import com.horizon.keyboard.core.VoiceEngineType
  * Routes voice recording to the correct engine based on settings, language, and API key availability.
  *
  * Engines:
- * - **Gemma** — Bangla specialist (Google AI Studio)
+ * - **Gemma** — Google AI Studio (Gemini 2.5 Flash, audio transcription)
  * - **Whisper** — English specialist (Groq)
  * - **Android** — Offline fallback (SpeechRecognizer)
  * - **Auto** — Routes by language: Bangla → Gemma, English → Whisper, fallback → Android

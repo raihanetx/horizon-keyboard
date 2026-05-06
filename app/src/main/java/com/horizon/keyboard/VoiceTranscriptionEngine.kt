@@ -30,8 +30,6 @@ class VoiceTranscriptionEngine(
 
     var groqApiKey: String = ""
     var gemmaApiKey: String = ""
-    var gemmaModelEn: String = "gemma-4-31b-it"
-    var gemmaModelBn: String = "gemma-4-31b-it"
     var currentVoiceLang: String = "en-US"
 
     // ── Internal Components ──────────────────────────────────────
@@ -136,11 +134,10 @@ class VoiceTranscriptionEngine(
         val wavData = WavEncoder.encode(pcmData, AudioRecorder.SAMPLE_RATE, 1, 16)
         val base64Audio = Base64.encodeToString(wavData, Base64.NO_WRAP)
         val langName = if (currentVoiceLang == "bn-BD") "Bangla" else "English"
-        val model = if (currentVoiceLang == "bn-BD") gemmaModelBn else gemmaModelEn
 
         executor.execute {
             try {
-                val result = GemmaApi.transcribe(base64Audio, gemmaApiKey, langName, model)
+                val result = GemmaApi.transcribe(base64Audio, gemmaApiKey, langName)
                 handleTranscriptionResult(result)
             } catch (e: Exception) {
                 handleTranscriptionError(e)

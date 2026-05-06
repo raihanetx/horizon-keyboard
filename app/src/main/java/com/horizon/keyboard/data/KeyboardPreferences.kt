@@ -10,7 +10,6 @@ import com.horizon.keyboard.voice.VoiceLanguage
  * Handles all non-sensitive configuration:
  * - Voice engine type selection
  * - Language preference
- * - Gemma model selection
  *
  * API keys are stored separately in [SecureKeyStore] (encrypted).
  */
@@ -32,18 +31,6 @@ class KeyboardPreferences(context: Context) {
             ?: VoiceLanguage.ENGLISH.name
         set(value) = prefs.edit().putString(KEY_SELECTED_LANGUAGE, value).apply()
 
-    // ─── Gemma Models ────────────────────────────────────────────
-
-    var gemmaModelEn: String
-        get() = prefs.getString(KEY_GEMMA_MODEL_EN, DEFAULT_GEMMA_MODEL)
-            ?: DEFAULT_GEMMA_MODEL
-        set(value) = prefs.edit().putString(KEY_GEMMA_MODEL_EN, value).apply()
-
-    var gemmaModelBn: String
-        get() = prefs.getString(KEY_GEMMA_MODEL_BN, DEFAULT_GEMMA_MODEL)
-            ?: DEFAULT_GEMMA_MODEL
-        set(value) = prefs.edit().putString(KEY_GEMMA_MODEL_BN, value).apply()
-
     // ─── Constants ───────────────────────────────────────────────
 
     companion object {
@@ -56,9 +43,5 @@ class KeyboardPreferences(context: Context) {
 
         private const val KEY_VOICE_ENGINE = "voice_engine"
         private const val KEY_SELECTED_LANGUAGE = "selected_language"
-        private const val KEY_GEMMA_MODEL_EN = "gemma_model_en"
-        private const val KEY_GEMMA_MODEL_BN = "gemma_model_bn"
-
-        const val DEFAULT_GEMMA_MODEL = "gemma-4-31b-it"
     }
 }

@@ -132,7 +132,7 @@ class KeyboardVoiceManager(
         val (engine, warning) = engineRouter.resolveWithStatus()
         val engineLabel = when (engine) {
             VoiceEngineRouter.Engine.WHISPER -> "🎤 Whisper"
-            VoiceEngineRouter.Engine.GEMMA -> "🤖 Gemma"
+            VoiceEngineRouter.Engine.GEMMA -> "🤖 Gemini"
             VoiceEngineRouter.Engine.ANDROID -> "📱 Android"
         }
         mainHandler.postDelayed({
@@ -294,7 +294,7 @@ class KeyboardVoiceManager(
             val (engine, warning) = engineRouter.resolveWithStatus()
             val engineLabel = when (engine) {
                 VoiceEngineRouter.Engine.WHISPER -> "🎤 Whisper"
-                VoiceEngineRouter.Engine.GEMMA -> "🤖 Gemma"
+                VoiceEngineRouter.Engine.GEMMA -> "🤖 Gemini"
                 VoiceEngineRouter.Engine.ANDROID -> "📱 Android"
             }
             if (warning != null) {

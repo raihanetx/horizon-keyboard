@@ -102,18 +102,6 @@ class SettingsPanel(
             }
             voiceEngine.groqApiKey = SecureKeyStore.getGroqKey(context)
             voiceEngine.gemmaApiKey = SecureKeyStore.getGemmaKey(context)
-            voiceEngine.gemmaModelEn = prefs.gemmaModelEn
-            voiceEngine.gemmaModelBn = prefs.gemmaModelBn
-            // Migrate old invalid model names to correct API model IDs
-            val validModels = setOf("gemma-4-31b-it", "gemma-4-26b-a4b-it")
-            if (voiceEngine.gemmaModelEn !in validModels) {
-                voiceEngine.gemmaModelEn = KeyboardPreferences.DEFAULT_GEMMA_MODEL
-                prefs.gemmaModelEn = voiceEngine.gemmaModelEn
-            }
-            if (voiceEngine.gemmaModelBn !in validModels) {
-                voiceEngine.gemmaModelBn = KeyboardPreferences.DEFAULT_GEMMA_MODEL
-                prefs.gemmaModelBn = voiceEngine.gemmaModelBn
-            }
             selectedLanguage = VoiceLanguage.fromName(prefs.selectedLanguage)
             voiceEngine.currentVoiceLang = selectedLanguage.gemmaCode
             lastError = null
@@ -132,8 +120,6 @@ class SettingsPanel(
                 VoiceEngineType.AUTO -> KeyboardPreferences.ENGINE_AUTO
                 else -> KeyboardPreferences.ENGINE_ANDROID
             }
-            prefs.gemmaModelEn = voiceEngine.gemmaModelEn
-            prefs.gemmaModelBn = voiceEngine.gemmaModelBn
             prefs.selectedLanguage = selectedLanguage.name
             if (voiceEngine.groqApiKey.isNotEmpty()) SecureKeyStore.setGroqKey(context, voiceEngine.groqApiKey)
             if (voiceEngine.gemmaApiKey.isNotEmpty()) SecureKeyStore.setGemmaKey(context, voiceEngine.gemmaApiKey)
@@ -179,7 +165,7 @@ class SettingsPanel(
         val engines = listOf(
             "auto" to "Auto (Best for each language)",
             "whisper_groq" to "Whisper via Groq (English)",
-            "gemma" to "Gemma 4 (Bangla)",
+            "gemma" to "Gemini Flash (Google AI Studio)",
             "android" to "Android Built-in (Offline)"
         )
         engines.forEach { (key, label) ->
@@ -229,7 +215,7 @@ class SettingsPanel(
         })
 
         // Gemma API Key
-        panel.addView(sectionHeader("GOOGLE AI STUDIO API KEY (GEMMA)"))
+        panel.addView(sectionHeader("GOOGLE AI STUDIO API KEY (GEMINI)"))
         val gemmaStatus = if (voiceEngine.gemmaApiKey.isNotEmpty()) "✓ Key saved (tap to edit)" else "Tap to add key..."
         panel.addView(settingsOption(gemmaStatus, voiceEngine.gemmaApiKey.isNotEmpty()) {
             val intent = Intent(context, ApiKeyActivity::class.java)
@@ -237,27 +223,11 @@ class SettingsPanel(
             context.startActivity(intent)
         })
         panel.addView(TextView(context).apply {
-            text = "🔒 Encrypted with Android Keystore · Free · Best for Bangla"
+            text = "🔒 Encrypted with Android Keystore · Free · Audio transcription"
             setTextColor(Color.parseColor(Colors.TEXT_TERTIARY))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
             setPadding(dp(10), 0, 0, dp(4))
         })
-
-        // Gemma Model (always visible)
-        panel.addView(sectionHeader("GEMMA MODEL"))
-        val models = listOf(
-            "gemma-4-31b-it" to "Gemma 4 31B (Dense — Better)",
-            "gemma-4-26b-a4b-it" to "Gemma 4 26B-A4B (MoE — Faster)"
-        )
-        models.forEach { (model, label) ->
-            val isSelected = (voiceEngine.currentVoiceLang == "bn-BD" && voiceEngine.gemmaModelBn == model) ||
-                (voiceEngine.currentVoiceLang == "en-US" && voiceEngine.gemmaModelEn == model)
-            panel.addView(settingsOption(label, isSelected) {
-                if (voiceEngine.currentVoiceLang == "bn-BD") voiceEngine.gemmaModelBn = model else voiceEngine.gemmaModelEn = model
-                saveSettings()
-                refreshPanel()
-            })
-        }
 
         // Close button
         val closeRow = LinearLayout(context).apply {
