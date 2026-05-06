@@ -60,7 +60,7 @@ object GemmaApi {
                 Log.e(TAG, "Bad request (400): $errorBody")
                 throw IOException("Invalid request (400). Check your API key and model.")
             }
-            responseCode == 401, responseCode == 403 -> {
+            responseCode == 401 || responseCode == 403 -> {
                 throw IOException("Access denied ($responseCode). Check your Google AI Studio API key.")
             }
             responseCode == 429 -> {
