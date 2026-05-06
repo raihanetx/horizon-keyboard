@@ -17,6 +17,7 @@ import com.horizon.keyboard.ui.keyboard.KeyRowBuilder
 import com.horizon.keyboard.ui.keyboard.KeyViewFactory
 import com.horizon.keyboard.ui.keyboard.SymbolPanel
 import com.horizon.keyboard.data.ClipboardRepository
+import com.horizon.keyboard.core.dictionary.SuggestionManager
 import com.horizon.keyboard.ui.panel.ClipboardPanel
 import com.horizon.keyboard.ui.panel.PanelHost
 import com.horizon.keyboard.ui.panel.SettingsPanel
@@ -55,6 +56,11 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     private val shiftKeys = mutableListOf<android.widget.TextView>()
     private val allLetterKeys = mutableListOf<android.widget.TextView>()
 
+    // Word prediction state
+    private val suggestionManager = SuggestionManager()
+    private var currentInput = StringBuilder()  // what user is currently typing
+    private var previousWord: String? = null     // last completed word
+
     // Panel containers
     private var keyboardContainer: LinearLayout? = null
     private var symbolContainer: LinearLayout? = null
@@ -64,10 +70,22 @@ class KeyboardView(context: Context) : LinearLayout(context) {
 
     private val keyFactory = KeyViewFactory(
         context = context,
-        onKeyPress = { onKeyPress?.invoke(it) },
-        onBackspace = { onBackspace?.invoke() },
-        onEnter = { onEnter?.invoke() },
-        onSpace = { onSpace?.invoke() },
+        onKeyPress = { char ->
+            onKeyPress?.invoke(char)
+            handleCharInput(char)
+        },
+        onBackspace = {
+            onBackspace?.invoke()
+            handleBackspace()
+        },
+        onEnter = {
+            onEnter?.invoke()
+            handleWordComplete()
+        },
+        onSpace = {
+            onSpace?.invoke()
+            handleWordComplete()
+        },
         allLetterKeys = allLetterKeys,
         getIsShift = { isShift },
         onToggleShift = { toggleShift() }
@@ -77,7 +95,10 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         context = context,
         keyFactory = keyFactory,
         onToggleSymbol = { toggleSymbolPanel() },
-        onSpace = { onSpace?.invoke() },
+        onSpace = {
+            onSpace?.invoke()
+            handleWordComplete()
+        },
         onToggleShift = { toggleShift() },
         shiftKeys = shiftKeys
     )
@@ -98,7 +119,16 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     )
 
     private val suggestionBar = SuggestionBar(context) { word ->
+        // When user taps a suggestion, insert it and learn
+        val cleanWord = word.trim()
+        if (cleanWord.isNotEmpty()) {
+            suggestionManager.onWordCompleted(cleanWord, previousWord)
+            previousWord = cleanWord
+            currentInput.clear()
+        }
         onKeyPress?.invoke(word)
+        // Update suggestions for next word
+        updateSuggestions()
     }
 
     // ─── Panel Host ──────────────────────────────────────────────
@@ -136,6 +166,8 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         setPadding(p, p, p, p)
         settingsPanel.loadSettings()
         voiceManager.setupVoiceEngineCallbacks()
+        // Initialize word prediction
+        suggestionManager.initialize(context)
         buildKeyboard()
         // Load current system clipboard into history
         loadInitialClipboard()
@@ -164,6 +196,8 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         keyFactory.cleanup()
         voiceManager.cleanup()
         clipboardPanel.cleanup()
+        // Save learned word data
+        suggestionManager.saveAll()
     }
 
     /**
@@ -281,6 +315,68 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         shiftKeys.forEach { tv ->
             val actualView = tv.tag as? LinearLayout ?: return@forEach
             actualView.background = if (isShift) Drawables.keyBgSolid(Colors.ACCENT_BLUE) else Drawables.keyBgSolid(Colors.BG_KEY_SOLID)
+        }
+    }
+
+    // ─── Word Prediction Tracking ────────────────────────────────
+
+    /**
+     * Called when a character key is pressed.
+     * Tracks the current input word and updates suggestions.
+     */
+    private fun handleCharInput(char: String) {
+        if (char.length == 1 && char[0].isLetter()) {
+            currentInput.append(char)
+        } else if (char == " ") {
+            handleWordComplete()
+        } else {
+            // Punctuation — treat as word boundary
+            if (currentInput.isNotEmpty()) {
+                handleWordComplete()
+            }
+        }
+        updateSuggestions()
+    }
+
+    /**
+     * Called when backspace is pressed.
+     * Removes last char from tracked input and updates suggestions.
+     */
+    private fun handleBackspace() {
+        if (currentInput.isNotEmpty()) {
+            currentInput.deleteCharAt(currentInput.lastIndex)
+        }
+        updateSuggestions()
+    }
+
+    /**
+     * Called when space or enter is pressed.
+     * Completes the current word — feeds it to the learning engine.
+     */
+    private fun handleWordComplete() {
+        if (currentInput.isNotEmpty()) {
+            val word = currentInput.toString()
+            suggestionManager.onWordCompleted(word, previousWord)
+            previousWord = word
+            currentInput.clear()
+        }
+    }
+
+    /**
+     * Update the suggestion bar with predictions from SuggestionManager.
+     * Called on every keystroke.
+     */
+    private fun updateSuggestions() {
+        val suggestions = suggestionManager.getSuggestions(
+            currentInput = currentInput.toString(),
+            previousWord = previousWord,
+            limit = SuggestionManager.MAX_SUGGESTIONS
+        )
+        if (suggestions.isNotEmpty()) {
+            suggestionBar.updateSuggestions(suggestions)
+        } else {
+            // Show fallback when no predictions
+            suggestionBar.updateSuggestions(listOf("I", "Hello", "The", "Thanks", "How"))
         }
     }
 }

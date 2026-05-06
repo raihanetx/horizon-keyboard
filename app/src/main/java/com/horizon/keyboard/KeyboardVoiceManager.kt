@@ -22,7 +22,7 @@ import com.horizon.keyboard.voice.VoiceLanguage
  * - [VoiceBar] for voice recording UI
  * - [VoiceEngineRouter] for engine selection (Whisper/Android)
  * - [VoiceSessionManager] for Android SpeechRecognizer lifecycle
- * - [VoiceTranscriptionEngine] for Whisper/Gemma API recording
+ * - [VoiceTranscriptionEngine] for Whisper API recording
  * - [VoiceCommandProcessor] for voice command interpretation
  */
 class KeyboardVoiceManager(
@@ -185,7 +185,7 @@ class KeyboardVoiceManager(
 
     /**
      * Stop recording and send audio for transcription.
-     * For Whisper/Gemma: calls stopAndTranscribe which records → encodes → API call → insert text.
+     * For Whisper: calls stopAndTranscribe which records → encodes → API call → insert text.
      * For Android: stops SpeechRecognizer (results come via callbacks).
      */
     private fun stopRecordingAndTranscribe() {
@@ -328,11 +328,11 @@ class KeyboardVoiceManager(
     }
 
     private fun toggleVoiceLanguage() {
-        currentVoiceLang = if (currentVoiceLang == VoiceLanguage.ENGLISH.gemmaCode)
-            VoiceLanguage.BANGLA.gemmaCode else VoiceLanguage.ENGLISH.gemmaCode
-        voiceBar.updateLanguageLabel(if (currentVoiceLang == VoiceLanguage.ENGLISH.gemmaCode) "EN" else "BN")
+        currentVoiceLang = if (currentVoiceLang == VoiceLanguage.ENGLISH.localeCode)
+            VoiceLanguage.BANGLA.localeCode else VoiceLanguage.ENGLISH.localeCode
+        voiceBar.updateLanguageLabel(if (currentVoiceLang == VoiceLanguage.ENGLISH.localeCode) "EN" else "BN")
         voiceBar.updateStatus(
-            if (currentVoiceLang == VoiceLanguage.ENGLISH.gemmaCode) "Language: English" else "Language: বাংলা"
+            if (currentVoiceLang == VoiceLanguage.ENGLISH.localeCode) "Language: English" else "Language: বাংলা"
         )
         if (sessionManager.isActive) {
             sessionManager.stop()
@@ -385,7 +385,7 @@ class KeyboardVoiceManager(
     }
 
     fun syncLanguage() {
-        currentVoiceLang = settingsPanel.selectedLanguage.gemmaCode
+        currentVoiceLang = settingsPanel.selectedLanguage.localeCode
         voiceBar.updateLanguageLabel(settingsPanel.selectedLanguage.whisperCode.uppercase())
     }
 }

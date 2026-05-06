@@ -1,6 +1,6 @@
 # Horizon Keyboard
 
-A minimal Android keyboard built with Jetpack Compose, featuring **dual-engine voice typing** with support for **English** and **15+ Indian languages**.
+A minimal Android keyboard built with Jetpack Compose, featuring **dual-engine voice typing** with support for **English** and **Bangla**.
 
 ## Features
 
@@ -13,11 +13,10 @@ A minimal Android keyboard built with Jetpack Compose, featuring **dual-engine v
 - Dark theme (iOS-style dark keyboard aesthetic)
 
 ### Voice Typing 🎤
-- **Dual-engine architecture** — automatic model selection per language
-- **Whisper (via Groq)** — English specialist, ~4.4% WER, 2,000 free requests/day
-- **Gemma 4** — Bangla specialist, powered by Google's Universal Speech Model
+- **Dual-engine architecture** — automatic engine selection per language
+- **Whisper (via Groq)** — English & Bangla specialist, ~4.4% WER, 2,000 free requests/day
 - **Android Built-in** — offline fallback using Google Speech Services
-- **Auto mode** — routes English → Whisper, Bangla → Gemma automatically
+- **Auto mode** — routes to Whisper if API key is set, else falls back to Android built-in
 - Continuous listening with auto-restart on timeout
 - Voice commands: "command down", "slash agent", "enter", "backspace", etc.
 
@@ -28,33 +27,30 @@ A minimal Android keyboard built with Jetpack Compose, featuring **dual-engine v
 - Saved clips section with star indicators
 
 ### Settings Panel
-- **Voice engine selector** (Auto / Whisper / Gemma / Android)
+- **Voice engine selector** (Auto / Whisper / Android)
 - **Language picker** — English or Bangla
-- **API key management** — Groq (Whisper) and Google AI Studio (Gemma)
-- **Model selection** — Gemma 4 E4B (better) or E2B (faster)
+- **API key management** — Groq (Whisper)
 
 ## Voice Engine Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
 │              Voice Engine Router             │
-├─────────────┬───────────────┬───────────────┤
-│  Whisper    │   Gemma 4     │   Android     │
-│  (Groq)     │   (Google AI) │   Built-in    │
-├─────────────┼───────────────┼───────────────┤
-│ English     │ Bangla        │ Offline       │
-│ ~4.4% WER   │ USM encoder   │ Variable      │
-│ 2000 RPD    │ ~1500 RPD     │ Unlimited     │
-│ Verbatim    │ Smart parse   │ Basic         │
-└─────────────┴───────────────┴───────────────┘
+├─────────────────────┬───────────────────────┤
+│  Whisper (Groq)     │   Android Built-in    │
+├─────────────────────┼───────────────────────┤
+│ English & Bangla    │   Offline fallback    │
+│ ~4.4% WER           │   Variable            │
+│ 2000 RPD            │   Unlimited           │
+│ Verbatim            │   Basic               │
+└─────────────────────┴───────────────────────┘
 ```
 
 ### Auto Mode Logic
 1. User selects language in Settings (English or Bangla)
 2. Voice bar shows language toggle ("EN" ↔ "BN")
 3. When recording stops:
-   - If language = Bangla → sends to **Gemma 4 API**
-   - If language = English → sends to **Groq Whisper API**
+   - If API key set → sends to **Groq Whisper API**
    - If no API key → falls back to **Android built-in**
 
 ## Security: Encrypted Key Storage
@@ -76,7 +72,7 @@ com.horizon.keyboard/
 ├── KeyboardSettingsManager.kt   # Settings panel + persistence
 ├── KeyboardClipboardManager.kt  # Clipboard panel + history
 ├── KeyboardTheme.kt             # Colors, drawables, dimension helpers
-├── VoiceTranscriptionEngine.kt  # Audio recording + Whisper/Gemma API calls
+├── VoiceTranscriptionEngine.kt  # Audio recording + Whisper API calls
 ├── VoiceCommandProcessor.kt     # Voice input → keyboard actions
 ├── VoiceLanguage.kt             # Supported languages enum
 ├── VoiceTypingBar.kt            # Compose voice bar

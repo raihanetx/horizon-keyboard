@@ -16,14 +16,14 @@ class VoiceLanguageTest {
     fun `english has correct codes`() {
         assertEquals("English", VoiceLanguage.ENGLISH.displayName)
         assertEquals("en", VoiceLanguage.ENGLISH.whisperCode)
-        assertEquals("en-US", VoiceLanguage.ENGLISH.gemmaCode)
+        assertEquals("en-US", VoiceLanguage.ENGLISH.localeCode)
     }
 
     @Test
     fun `bangla has correct codes`() {
         assertEquals("বাংলা (Bangla)", VoiceLanguage.BANGLA.displayName)
         assertEquals("bn", VoiceLanguage.BANGLA.whisperCode)
-        assertEquals("bn-BD", VoiceLanguage.BANGLA.gemmaCode)
+        assertEquals("bn-BD", VoiceLanguage.BANGLA.localeCode)
     }
 
     // ─── fromName Lookup ─────────────────────────────────────────
@@ -63,9 +63,9 @@ class VoiceLanguageTest {
     }
 
     @Test
-    fun `gemma codes are locale format`() {
+    fun `locale codes are locale format`() {
         VoiceLanguage.entries.forEach { lang ->
-            assertTrue(lang.gemmaCode.contains("-"))
+            assertTrue(lang.localeCode.contains("-"))
         }
     }
 }

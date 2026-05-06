@@ -16,7 +16,7 @@ object WhisperApi {
 
     private const val TAG = "WhisperApi"
     private const val ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions"
-    private const val MODEL = "whisper-large-v3-turbo"
+    private const val MODEL = "whisper-large-v3"
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 30_000
     private const val MAX_RETRIES = 2

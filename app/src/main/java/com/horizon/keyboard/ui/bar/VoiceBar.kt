@@ -185,7 +185,7 @@ class VoiceBar(
 
     /**
      * Update the status text and color.
-     * Shows engine name + state (e.g. "🎤 Whisper · Listening", "🤖 Gemma · Transcribing").
+     * Shows engine name + state (e.g. "🎤 Whisper · Listening", "🎤 Whisper · Transcribing").
      */
     fun updateStatus(message: String, colorHex: String? = null) {
         statusText.text = message

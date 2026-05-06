@@ -83,7 +83,7 @@ class SettingsPanel(
             }
             voiceEngine.groqApiKey = SecureKeyStore.getGroqKey(context)
             selectedLanguage = VoiceLanguage.fromName(prefs.selectedLanguage)
-            voiceEngine.currentVoiceLang = selectedLanguage.gemmaCode
+            voiceEngine.currentVoiceLang = selectedLanguage.localeCode
             lastError = null
         } catch (e: Exception) {
             Log.e("SettingsPanel", "Failed to load settings", e)
@@ -161,9 +161,9 @@ class SettingsPanel(
         panel.addView(sectionHeader("VOICE LANGUAGE"))
         VoiceLanguage.entries.forEach { lang ->
             panel.addView(settingsOption(
-                lang.displayName, voiceEngine.currentVoiceLang == lang.gemmaCode
+                lang.displayName, voiceEngine.currentVoiceLang == lang.localeCode
             ) {
-                voiceEngine.currentVoiceLang = lang.gemmaCode
+                voiceEngine.currentVoiceLang = lang.localeCode
                 selectedLanguage = lang
                 saveSettings()
                 refreshPanel()

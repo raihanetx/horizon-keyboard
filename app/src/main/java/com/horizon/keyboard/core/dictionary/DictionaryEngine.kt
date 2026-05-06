@@ -133,6 +133,79 @@ class DictionaryEngine {
         return frequencyMap.containsKey(word.lowercase())
     }
 
+    // ─── Fuzzy Matching ───────────────────────────────────────────
+
+    /**
+     * Get suggestions using fuzzy matching (typo tolerance).
+     * Finds words within Levenshtein distance 1-2 of the input.
+     *
+     * Called when prefix matching returns too few results.
+     * Handles common typos: "teh" → "the", "adn" → "and", "wrok" → "work"
+     *
+     * @param input What the user typed (possibly misspelled).
+     * @param limit Maximum suggestions.
+     * @return List of close matches, sorted by (edit distance, frequency).
+     */
+    fun getFuzzySuggestions(input: String, limit: Int = 5): List<String> {
+        if (input.isEmpty() || entries.isEmpty()) return emptyList()
+
+        val lower = input.lowercase()
+        val maxDistance = if (lower.length <= 3) 1 else 2
+
+        // Only check words within ±2 length of input (optimization)
+        val minLen = (lower.length - maxDistance).coerceAtLeast(1)
+        val maxLen = lower.length + maxDistance
+
+        val candidates = mutableListOf<Triple<String, Int, Int>>() // word, freq, distance
+
+        for ((word, freq) in entries) {
+            if (word.length < minLen || word.length > maxLen) continue
+            if (word == lower) continue // exact match excluded
+
+            val dist = levenshteinDistance(lower, word)
+            if (dist <= maxDistance) {
+                candidates.add(Triple(word, freq, dist))
+            }
+        }
+
+        // Sort by: edit distance ASC, then frequency DESC
+        return candidates
+            .sortedWith(compareBy<Triple<String, Int, Int>> { it.third }.thenByDescending { it.second })
+            .take(limit)
+            .map { it.first }
+    }
+
+    /**
+     * Levenshtein distance between two strings.
+     * Returns the minimum number of single-character edits (insert, delete, replace)
+     * needed to transform one string into the other.
+     */
+    private fun levenshteinDistance(s1: String, s2: String): Int {
+        val len1 = s1.length
+        val len2 = s2.length
+
+        // Use single-row DP for memory efficiency
+        var prev = IntArray(len2 + 1) { it }
+        var curr = IntArray(len2 + 1)
+
+        for (i in 1..len1) {
+            curr[0] = i
+            for (j in 1..len2) {
+                val cost = if (s1[i - 1] == s2[j - 1]) 0 else 1
+                curr[j] = minOf(
+                    prev[j] + 1,      // delete
+                    curr[j - 1] + 1,  // insert
+                    prev[j - 1] + cost // replace
+                )
+            }
+            val temp = prev
+            prev = curr
+            curr = temp
+        }
+
+        return prev[len2]
+    }
+
     // ─── Private ─────────────────────────────────────────────────
 
     /**
