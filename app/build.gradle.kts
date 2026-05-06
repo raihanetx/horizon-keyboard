@@ -15,29 +15,16 @@ android {
         versionName = "1.0"
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = file("../app/horizon-release.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "horizon123"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "horizon"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "horizon123"
-        }
-    }
-
     buildTypes {
         debug {
-            val keystoreFile = file("../app/horizon-release.jks")
-            if (keystoreFile.exists()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
-        }
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            val keystoreFile = file("../app/horizon-release.jks")
-            if (keystoreFile.exists()) {
-                signingConfig = signingConfigs.getByName("release")
+            val ks = file("horizon-release.jks")
+            if (ks.exists()) {
+                signingConfig = signingConfigs.create("ci") {
+                    storeFile = ks
+                    storePassword = "horizon123"
+                    keyAlias = "horizon"
+                    keyPassword = "horizon123"
+                }
             }
         }
     }
@@ -67,7 +54,6 @@ android {
 }
 
 dependencies {
-    // Unit tests
     testImplementation("junit:junit:4.13.2")
 
     implementation("androidx.core:core-ktx:1.12.0")
@@ -75,10 +61,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
 
-    // Security — EncryptedSharedPreferences + Android Keystore
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
-    // Compose BOM
     implementation(platform("androidx.compose:compose-bom:2024.01.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
