@@ -59,6 +59,6 @@ class KeyboardPreferences(context: Context) {
         private const val KEY_GEMMA_MODEL_EN = "gemma_model_en"
         private const val KEY_GEMMA_MODEL_BN = "gemma_model_bn"
 
-        const val DEFAULT_GEMMA_MODEL = "gemma-4-e4b-it"
+        const val DEFAULT_GEMMA_MODEL = "gemma-4-31b-it"
     }
 }

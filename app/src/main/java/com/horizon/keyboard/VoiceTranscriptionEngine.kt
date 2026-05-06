@@ -30,8 +30,8 @@ class VoiceTranscriptionEngine(
 
     var groqApiKey: String = ""
     var gemmaApiKey: String = ""
-    var gemmaModelEn: String = "gemma-4-e4b-it"
-    var gemmaModelBn: String = "gemma-4-e4b-it"
+    var gemmaModelEn: String = "gemma-4-31b-it"
+    var gemmaModelBn: String = "gemma-4-31b-it"
     var currentVoiceLang: String = "en-US"
 
     // ── Internal Components ──────────────────────────────────────

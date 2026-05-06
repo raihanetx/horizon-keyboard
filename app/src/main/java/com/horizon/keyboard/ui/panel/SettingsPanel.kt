@@ -104,6 +104,16 @@ class SettingsPanel(
             voiceEngine.gemmaApiKey = SecureKeyStore.getGemmaKey(context)
             voiceEngine.gemmaModelEn = prefs.gemmaModelEn
             voiceEngine.gemmaModelBn = prefs.gemmaModelBn
+            // Migrate old invalid model names to correct API model IDs
+            val validModels = setOf("gemma-4-31b-it", "gemma-4-26b-a4b-it")
+            if (voiceEngine.gemmaModelEn !in validModels) {
+                voiceEngine.gemmaModelEn = KeyboardPreferences.DEFAULT_GEMMA_MODEL
+                prefs.gemmaModelEn = voiceEngine.gemmaModelEn
+            }
+            if (voiceEngine.gemmaModelBn !in validModels) {
+                voiceEngine.gemmaModelBn = KeyboardPreferences.DEFAULT_GEMMA_MODEL
+                prefs.gemmaModelBn = voiceEngine.gemmaModelBn
+            }
             selectedLanguage = VoiceLanguage.fromName(prefs.selectedLanguage)
             voiceEngine.currentVoiceLang = selectedLanguage.gemmaCode
             lastError = null
@@ -236,8 +246,8 @@ class SettingsPanel(
         // Gemma Model (always visible)
         panel.addView(sectionHeader("GEMMA MODEL"))
         val models = listOf(
-            "gemma-4-e4b-it" to "Gemma 4 E4B (4B — Better)",
-            "gemma-4-e2b-it" to "Gemma 4 E2B (2B — Faster)"
+            "gemma-4-31b-it" to "Gemma 4 31B (Dense — Better)",
+            "gemma-4-26b-a4b-it" to "Gemma 4 26B-A4B (MoE — Faster)"
         )
         models.forEach { (model, label) ->
             val isSelected = (voiceEngine.currentVoiceLang == "bn-BD" && voiceEngine.gemmaModelBn == model) ||
