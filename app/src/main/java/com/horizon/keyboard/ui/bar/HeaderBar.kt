@@ -24,6 +24,7 @@ import com.horizon.keyboard.ui.theme.Dimensions
  *
  * @param onTranslate Callback when translate icon is tapped.
  * @param onClipboard Callback when clipboard icon is tapped.
+ * @param onSaved Callback when saved/pin icon is tapped.
  * @param onVoice Callback when voice icon is tapped.
  * @param onSettings Callback when settings icon is tapped.
  */
@@ -31,6 +32,7 @@ class HeaderBar(
     private val context: Context,
     private val onTranslate: () -> Unit,
     private val onClipboard: () -> Unit,
+    private val onSaved: () -> Unit,
     private val onVoice: () -> Unit,
     private val onSettings: () -> Unit
 ) {
@@ -68,6 +70,7 @@ class HeaderBar(
         val icons = listOf(
             R.drawable.ic_translate to onTranslate,
             R.drawable.ic_clipboard to onClipboard,
+            R.drawable.ic_star to onSaved,
             R.drawable.ic_voice to onVoice,
             R.drawable.ic_settings to onSettings
         )

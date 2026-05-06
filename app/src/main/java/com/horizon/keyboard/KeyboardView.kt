@@ -114,6 +114,7 @@ class KeyboardView(context: Context) : LinearLayout(context) {
         context = context,
         onTranslate = { android.widget.Toast.makeText(context, "Translate — Coming Soon", android.widget.Toast.LENGTH_SHORT).show() },
         onClipboard = { toggleClipboardPanel() },
+        onSaved = { toggleSavedPanel() },
         onVoice = { voiceManager.showVoiceBarForEngine() },
         onSettings = { toggleSettingsPanel() }
     )
@@ -292,6 +293,14 @@ class KeyboardView(context: Context) : LinearLayout(context) {
     // ─── Panel Toggling ──────────────────────────────────────────
 
     private fun toggleClipboardPanel() = panelHost.toggleClipboard()
+    private fun toggleSavedPanel() {
+        if (panelHost.isClipboard && clipboardPanel.isShowingSaved) {
+            panelHost.showKeyboard()
+        } else {
+            clipboardPanel.showSaved()
+            panelHost.showClipboard()
+        }
+    }
     private fun toggleSettingsPanel() {
         if (panelHost.isSettings) {
             panelHost.showKeyboard()

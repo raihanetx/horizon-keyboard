@@ -55,6 +55,10 @@ class ClipboardPanel(
     private var emptyStateText: TextView? = null
 
     private var showingSaved = false
+
+    /** Whether the Saved tab is currently active. */
+    val isShowingSaved: Boolean get() = showingSaved
+
     private var searchQuery = ""
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -266,6 +270,16 @@ class ClipboardPanel(
     // ─── Panel Visibility ────────────────────────────────────────
 
     fun show() {
+        panel?.visibility = View.VISIBLE
+        refreshList()
+    }
+
+    /**
+     * Open clipboard panel directly on the Saved tab.
+     */
+    fun showSaved() {
+        showingSaved = true
+        updateTabStyles()
         panel?.visibility = View.VISIBLE
         refreshList()
     }
