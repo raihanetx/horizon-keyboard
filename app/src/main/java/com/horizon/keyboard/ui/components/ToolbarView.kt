@@ -114,36 +114,19 @@ private fun RowScope.TypingToolbarContent(
     iconColor: androidx.compose.ui.graphics.Color,
     textColor: androidx.compose.ui.graphics.Color
 ) {
-    ToolbarButton(Icons.Filled.Keyboard, "Hide suggestions", { onToolbarAction(ToolbarAction.KEYBOARD_LAYOUT) }, iconColor)
-
-    if (suggestions.isNotEmpty()) {
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            suggestions.forEachIndexed { index, word ->
-                if (index > 0) {
-                    Text(
-                        text = " · ",
-                        fontSize = 14.sp,
-                        color = textColor.copy(alpha = 0.3f)
-                    )
-                }
-                Text(
-                    text = word,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = textColor,
-                    modifier = Modifier
-                        .clickable { onSuggestionClick(word) }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
-        }
+    // Show same default toolbar buttons when typing
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ToolbarButton(Icons.Filled.Keyboard, "Keyboard Layout", { onToolbarAction(ToolbarAction.KEYBOARD_LAYOUT) }, iconColor)
+        ToolbarButton(Icons.Filled.SentimentSatisfied, "Emojis", { onToolbarAction(ToolbarAction.EMOJIS) }, iconColor)
+        ToolbarButton(Icons.Filled.Mic, "Voice Typing", { onToolbarAction(ToolbarAction.VOICE_TYPING) }, iconColor)
+        ToolbarButton(Icons.Filled.ContentCopy, "Clipboard", { onToolbarAction(ToolbarAction.CLIPBOARD) }, iconColor)
+        ToolbarButton(Icons.Filled.Language, "Translate", { onToolbarAction(ToolbarAction.TRANSLATE) }, iconColor)
+        ToolbarButton(Icons.Filled.Settings, "Settings", { onToolbarAction(ToolbarAction.SETTINGS) }, iconColor)
     }
-
-    ToolbarButton(Icons.Filled.VolumeUp, "Voice typing", { onToolbarAction(ToolbarAction.VOICE_TYPING) }, iconColor)
 }
 
 @Composable

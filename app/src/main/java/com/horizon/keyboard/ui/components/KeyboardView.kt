@@ -122,52 +122,53 @@ fun SuggestionRow(
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    val backgroundColor = if (isDark) DarkKeyBackground else LightKeyBackground
     val textColor = if (isDark) DarkSuggestionText else LightSuggestionText
-    val borderColor = if (isDark) DarkKeyBorder else LightKeyBorder
+    val dividerColor = if (isDark) DarkKeyBorder else LightKeyBorder
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp)
+            .height(36.dp)
             .drawBehind {
-                // Bottom border for the suggestion row
-                val borderWidth = 1.dp.toPx()
-                val path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(0f, size.height - borderWidth / 2f)
-                    lineTo(size.width, size.height - borderWidth / 2f)
-                }
-                drawPath(
-                    path = path,
-                    color = borderColor,
-                    style = Stroke(width = borderWidth)
+                // Top border line
+                val borderWidth = 0.5.dp.toPx()
+                drawLine(
+                    color = dividerColor,
+                    start = androidx.compose.ui.geometry.Offset(0f, borderWidth / 2f),
+                    end = androidx.compose.ui.geometry.Offset(size.width, borderWidth / 2f),
+                    strokeWidth = borderWidth
+                )
+                // Bottom border line
+                drawLine(
+                    color = dividerColor,
+                    start = androidx.compose.ui.geometry.Offset(0f, size.height - borderWidth / 2f),
+                    end = androidx.compose.ui.geometry.Offset(size.width, size.height - borderWidth / 2f),
+                    strokeWidth = borderWidth
                 )
             },
-        horizontalArrangement = Arrangement.spacedBy(
-            space = 6.dp,
-            alignment = Alignment.CenterHorizontally
-        ),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        suggestions.forEach { suggestion ->
+        suggestions.forEachIndexed { index, suggestion ->
+            // Divider line before each item (except first)
+            if (index > 0) {
+                Box(
+                    modifier = Modifier
+                        .width(0.5.dp)
+                        .height(20.dp)
+                        .drawBehind {
+                            drawLine(
+                                color = dividerColor,
+                                start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                end = androidx.compose.ui.geometry.Offset(0f, size.height),
+                                strokeWidth = 0.5.dp.toPx()
+                            )
+                        }
+                )
+            }
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(40.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(backgroundColor)
-                    .drawBehind {
-                        val borderWidth = 1.dp.toPx()
-                        val path = androidx.compose.ui.graphics.Path().apply {
-                            moveTo(0f, size.height - borderWidth / 2f)
-                            lineTo(size.width, size.height - borderWidth / 2f)
-                        }
-                        drawPath(
-                            path = path,
-                            color = borderColor,
-                            style = Stroke(width = borderWidth)
-                        )
-                    }
+                    .height(36.dp)
                     .clickable { onSuggestionClick(suggestion) },
                 contentAlignment = Alignment.Center
             ) {
