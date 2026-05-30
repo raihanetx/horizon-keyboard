@@ -26,7 +26,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.horizon.keyboard.ui.clipboard.ClipboardPanel
 import com.horizon.keyboard.ui.keyboard.KeyboardContainer
 import com.horizon.keyboard.ui.keyboard.ToolbarAction
 import com.horizon.keyboard.ui.keyboard.ToolbarMode
@@ -35,6 +38,7 @@ import com.horizon.keyboard.ui.theme.DarkKeyText
 import com.horizon.keyboard.ui.theme.Dimens
 import com.horizon.keyboard.ui.theme.LightBackground
 import com.horizon.keyboard.ui.theme.LightKeyText
+import com.horizon.keyboard.viewmodel.ClipboardViewModel
 import com.horizon.keyboard.viewmodel.KeyboardViewModel
 import com.horizon.keyboard.viewmodel.VoiceViewModel
 
@@ -44,11 +48,13 @@ import com.horizon.keyboard.viewmodel.VoiceViewModel
 @Composable
 fun MainScreen(
     keyboardViewModel: KeyboardViewModel = viewModel(),
-    voiceViewModel: VoiceViewModel = viewModel()
+    voiceViewModel: VoiceViewModel = viewModel(),
+    clipboardViewModel: ClipboardViewModel = viewModel()
 ) {
     val isDark = isSystemInDarkTheme()
     val context = LocalContext.current
     val voiceState by voiceViewModel.uiState.collectAsState()
+    val clipboardState by clipboardViewModel.uiState.collectAsState()
     
     var textContent by remember { mutableStateOf("") }
     var hasPermission by remember { mutableStateOf(false) }
@@ -88,6 +94,7 @@ fun MainScreen(
     // Determine toolbar mode
     val toolbarMode = when {
         voiceState.isListening -> ToolbarMode.VOICE
+        clipboardState.isPanelOpen -> ToolbarMode.DEFAULT
         textContent.isNotEmpty() -> ToolbarMode.TYPING
         else -> ToolbarMode.DEFAULT
     }
@@ -111,6 +118,29 @@ fun MainScreen(
             isDark = isDark
         )
         
+        // Clipboard panel (shows above keyboard)
+        if (clipboardState.isPanelOpen) {
+            ClipboardPanel(
+                isVisible = clipboardState.isPanelOpen,
+                items = clipboardState.items,
+                isSearchVisible = false,
+                searchText = clipboardState.searchText,
+                onSearchTextChange = { clipboardViewModel.updateSearch(it) },
+                onToggleSearch = {},
+                onClearAll = { clipboardViewModel.clearUnpinned() },
+                onClose = { clipboardViewModel.closePanel() },
+                onPaste = { text ->
+                    textContent = if (textContent.isEmpty()) text else "$textContent $text"
+                    clipboardViewModel.closePanel()
+                },
+                onTogglePin = { clipboardViewModel.togglePin(it) },
+                onRemove = { clipboardViewModel.remove(it) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 280.dp)
+            )
+        }
+        
         // Keyboard
         KeyboardContainer(
             toolbarMode = toolbarMode,
@@ -120,7 +150,9 @@ fun MainScreen(
                     hasPermission = hasPermission,
                     context = context,
                     voiceViewModel = voiceViewModel,
-                    permissionLauncher = permissionLauncher
+                    clipboardViewModel = clipboardViewModel,
+                    permissionLauncher = permissionLauncher,
+                    onCopy = { clipboardViewModel.copy(textContent) }
                 )
             },
             voiceLanguage = voiceState.currentLanguage.displayName,
@@ -147,15 +179,15 @@ private fun TextInputSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(Dimens.SpacingLg)
-            .padding(bottom = Dimens.KeyboardHeight),
+            .padding(16.dp)
+            .padding(bottom = 280.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = "Horizon Keyboard",
-            fontSize = Dimens.TextTitle,
+            fontSize = 24.sp,
             color = if (isDark) DarkKeyText else LightKeyText,
-            modifier = Modifier.padding(bottom = Dimens.SpacingLg)
+            modifier = Modifier.padding(bottom = 16.dp)
         )
         
         TextField(
@@ -171,10 +203,10 @@ private fun TextInputSection(
                 )
             },
             textStyle = TextStyle(
-                fontSize = Dimens.TextLarge,
+                fontSize = 16.sp,
                 color = if (isDark) DarkKeyText else LightKeyText
             ),
-            shape = RoundedCornerShape(Dimens.RadiusLg),
+            shape = RoundedCornerShape(12.dp),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = if (isDark) Color(0xFF2D3748) else Color.White,
                 unfocusedContainerColor = if (isDark) Color(0xFF2D3748) else Color.White,
@@ -198,7 +230,9 @@ private fun handleToolbarAction(
     hasPermission: Boolean,
     context: android.content.Context,
     voiceViewModel: VoiceViewModel,
-    permissionLauncher: androidx.activity.result.ActivityResultLauncher<String>
+    clipboardViewModel: ClipboardViewModel,
+    permissionLauncher: androidx.activity.result.ActivityResultLauncher<String>,
+    onCopy: () -> Unit
 ) {
     when (action) {
         ToolbarAction.VOICE_TYPING -> {
@@ -210,6 +244,13 @@ private fun handleToolbarAction(
         }
         ToolbarAction.STOP_VOICE -> voiceViewModel.stopListening()
         ToolbarAction.EN_BN_TOGGLE -> voiceViewModel.toggleLanguage()
+        ToolbarAction.CLIPBOARD -> {
+            clipboardViewModel.togglePanel()
+        }
+        ToolbarAction.SETTINGS -> {
+            // Copy current text to clipboard
+            onCopy()
+        }
         else -> {} // Other actions not implemented yet
     }
 }
