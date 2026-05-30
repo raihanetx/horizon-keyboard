@@ -11,6 +11,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+/**
+ * Light color scheme.
+ */
 private val LightColorScheme = lightColorScheme(
     primary = LightToolbarIcon,
     onPrimary = LightShiftActiveText,
@@ -20,6 +23,9 @@ private val LightColorScheme = lightColorScheme(
     outline = LightContainerBorder
 )
 
+/**
+ * Dark color scheme.
+ */
 private val DarkColorScheme = darkColorScheme(
     primary = DarkToolbarIcon,
     onPrimary = DarkShiftActiveText,
@@ -29,13 +35,16 @@ private val DarkColorScheme = darkColorScheme(
     outline = DarkContainerBorder
 )
 
+/**
+ * Main theme for Horizon Keyboard.
+ */
 @Composable
 fun HorizonKeyboardTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-
+    
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -44,7 +53,7 @@ fun HorizonKeyboardTheme(
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
-
+    
     MaterialTheme(
         colorScheme = colorScheme,
         content = content
