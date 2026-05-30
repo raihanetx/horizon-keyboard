@@ -1,9 +1,7 @@
 package com.horizon.keyboard
 
 import android.Manifest
-import android.content.Intent
 import android.os.Bundle
-import android.speech.RecognizerIntent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -22,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,7 +42,7 @@ import com.horizon.keyboard.ui.theme.HorizonKeyboardTheme
 import com.horizon.keyboard.ui.theme.LightBackground
 import com.horizon.keyboard.ui.theme.LightKeyText
 import com.horizon.keyboard.viewmodel.KeyboardViewModel
-import java.util.Locale
+import com.horizon.keyboard.voice.VoiceRecognitionManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,45 +68,42 @@ fun KeyboardScreen() {
 
     var textContent by remember { mutableStateOf("") }
     var toolbarMode by remember { mutableStateOf(ToolbarMode.DEFAULT) }
-    var isListening by remember { mutableStateOf(false) }
-
-    // Speech recognition launcher
-    val speechLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        isListening = false
-        toolbarMode = ToolbarMode.DEFAULT
-        if (result.resultCode == ComponentActivity.RESULT_OK) {
-            val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            val spokenText = matches?.firstOrNull() ?: ""
-            if (spokenText.isNotEmpty()) {
-                textContent = if (textContent.isEmpty()) {
-                    spokenText
-                } else {
-                    "$textContent $spokenText"
-                }
-            }
+    
+    // Voice recognition manager
+    val voiceManager = remember { VoiceRecognitionManager(context) }
+    
+    // Cleanup on dispose
+    DisposableEffect(Unit) {
+        onDispose {
+            voiceManager.destroy()
         }
     }
-
+    
+    // Set up voice callbacks
+    voiceManager.onResult = { text ->
+        textContent = if (textContent.isEmpty()) {
+            text
+        } else {
+            "$textContent $text"
+        }
+        toolbarMode = if (textContent.isNotEmpty()) ToolbarMode.TYPING else ToolbarMode.DEFAULT
+    }
+    
     // Permission launcher
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            isListening = true
+            voiceManager.startListening()
             toolbarMode = ToolbarMode.VOICE
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now...")
-            }
-            speechLauncher.launch(intent)
         }
     }
 
     viewModel.onKeyPress = { key ->
         textContent += key
+        if (voiceManager.isListening) {
+            voiceManager.stopListening()
+        }
     }
     viewModel.onBackspace = {
         if (textContent.isNotEmpty()) {
@@ -118,7 +114,7 @@ fun KeyboardScreen() {
     val suggestions = remember(textContent) { viewModel.getSuggestions(textContent) }
 
     val effectiveToolbarMode = when {
-        isListening -> ToolbarMode.VOICE
+        voiceManager.isListening -> ToolbarMode.VOICE
         textContent.isNotEmpty() -> ToolbarMode.TYPING
         else -> ToolbarMode.DEFAULT
     }
@@ -150,7 +146,11 @@ fun KeyboardScreen() {
                     .weight(1f),
                 placeholder = {
                     Text(
-                        text = if (isListening) "Listening..." else "Start typing...",
+                        text = if (voiceManager.isListening) {
+                            "Listening in ${voiceManager.currentLanguage.displayName}..."
+                        } else {
+                            "Start typing..."
+                        },
                         color = if (isDark) DarkKeyText.copy(alpha = 0.4f) else LightKeyText.copy(alpha = 0.4f)
                     )
                 },
@@ -181,12 +181,16 @@ fun KeyboardScreen() {
                         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
                     ToolbarAction.STOP_VOICE -> {
-                        isListening = false
-                        toolbarMode = ToolbarMode.DEFAULT
+                        voiceManager.stopListening()
+                        toolbarMode = if (textContent.isNotEmpty()) ToolbarMode.TYPING else ToolbarMode.DEFAULT
+                    }
+                    ToolbarAction.EN_BN_TOGGLE -> {
+                        voiceManager.toggleLanguage()
                     }
                     else -> {}
                 }
             },
+            voiceLanguage = voiceManager.currentLanguage.displayName,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }

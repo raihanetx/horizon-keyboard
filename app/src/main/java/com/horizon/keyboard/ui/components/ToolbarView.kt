@@ -1,5 +1,6 @@
 package com.horizon.keyboard.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -16,10 +17,9 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SentimentSatisfied
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -50,6 +51,7 @@ fun ToolbarView(
     suggestions: List<String>,
     onSuggestionClick: (String) -> Unit,
     onToolbarAction: (ToolbarAction) -> Unit,
+    voiceLanguage: String = "EN",
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
@@ -80,8 +82,8 @@ fun ToolbarView(
     ) {
         when (mode) {
             ToolbarMode.DEFAULT -> DefaultToolbarContent(onToolbarAction, iconColor)
-            ToolbarMode.TYPING -> TypingToolbarContent(suggestions, onSuggestionClick, onToolbarAction, iconColor, textColor)
-            ToolbarMode.VOICE -> VoiceToolbarContent(onToolbarAction, iconColor, textColor)
+            ToolbarMode.TYPING -> TypingToolbarContent(onToolbarAction, iconColor)
+            ToolbarMode.VOICE -> VoiceToolbarContent(onToolbarAction, iconColor, textColor, voiceLanguage)
         }
     }
 }
@@ -89,12 +91,11 @@ fun ToolbarView(
 @Composable
 private fun DefaultToolbarContent(
     onToolbarAction: (ToolbarAction) -> Unit,
-    iconColor: androidx.compose.ui.graphics.Color
+    iconColor: Color
 ) {
-    val spacing = Arrangement.SpaceAround
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = spacing,
+        horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
         ToolbarButton(Icons.Filled.Keyboard, "Keyboard Layout", { onToolbarAction(ToolbarAction.KEYBOARD_LAYOUT) }, iconColor)
@@ -107,14 +108,10 @@ private fun DefaultToolbarContent(
 }
 
 @Composable
-private fun RowScope.TypingToolbarContent(
-    suggestions: List<String>,
-    onSuggestionClick: (String) -> Unit,
+private fun TypingToolbarContent(
     onToolbarAction: (ToolbarAction) -> Unit,
-    iconColor: androidx.compose.ui.graphics.Color,
-    textColor: androidx.compose.ui.graphics.Color
+    iconColor: Color
 ) {
-    // Show same default toolbar buttons when typing
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceAround,
@@ -132,34 +129,88 @@ private fun RowScope.TypingToolbarContent(
 @Composable
 private fun RowScope.VoiceToolbarContent(
     onToolbarAction: (ToolbarAction) -> Unit,
-    iconColor: androidx.compose.ui.graphics.Color,
-    textColor: androidx.compose.ui.graphics.Color
+    iconColor: Color,
+    textColor: Color,
+    voiceLanguage: String
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Language toggle button (EN / BN)
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
                 .clickable { onToolbarAction(ToolbarAction.EN_BN_TOGGLE) }
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text("EN", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = textColor)
-            Text(" / ", fontSize = 10.sp, color = textColor.copy(alpha = 0.4f))
-            Text("BN", fontSize = 13.sp, color = textColor.copy(alpha = 0.5f))
+            Text(
+                text = "EN",
+                fontSize = 14.sp,
+                fontWeight = if (voiceLanguage == "EN") FontWeight.Bold else FontWeight.Normal,
+                color = if (voiceLanguage == "EN") textColor else textColor.copy(alpha = 0.5f)
+            )
+            Text(
+                text = "/",
+                fontSize = 12.sp,
+                color = textColor.copy(alpha = 0.4f)
+            )
+            Text(
+                text = "BN",
+                fontSize = 14.sp,
+                fontWeight = if (voiceLanguage == "BN") FontWeight.Bold else FontWeight.Normal,
+                color = if (voiceLanguage == "BN") textColor else textColor.copy(alpha = 0.5f)
+            )
         }
 
-        Text(
-            text = "Listening...",
-            fontSize = 13.sp,
-            color = textColor.copy(alpha = 0.7f),
+        // Listening indicator with mic icon
+        Row(
             modifier = Modifier.weight(1f),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Mic,
+                contentDescription = "Listening",
+                tint = Color(0xFF4CAF50),
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = " Listening...",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF4CAF50)
+            )
+        }
 
-        ToolbarButton(Icons.Filled.Stop, "Stop", { onToolbarAction(ToolbarAction.STOP_VOICE) }, iconColor)
+        // Stop button
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .clickable { onToolbarAction(ToolbarAction.STOP_VOICE) }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MicOff,
+                    contentDescription = "Stop",
+                    tint = Color(0xFFE53935),
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Stop",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFE53935)
+                )
+            }
+        }
     }
 }
 
@@ -168,7 +219,7 @@ private fun ToolbarButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
-    tint: androidx.compose.ui.graphics.Color
+    tint: Color
 ) {
     Box(
         modifier = Modifier

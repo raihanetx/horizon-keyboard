@@ -1,0 +1,150 @@
+package com.horizon.keyboard.voice
+
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
+enum class VoiceLanguage(val code: String, val displayName: String) {
+    ENGLISH("en-US", "EN"),
+    BANGLA("bn-BD", "BN")
+}
+
+class VoiceRecognitionManager(private val context: Context) {
+    
+    private var speechRecognizer: SpeechRecognizer? = null
+    private var isInitialized = false
+    
+    var isListening by mutableStateOf(false)
+        private set
+    
+    var recognizedText by mutableStateOf("")
+        private set
+    
+    var currentLanguage by mutableStateOf(VoiceLanguage.ENGLISH)
+        private set
+    
+    var errorMessage by mutableStateOf<String?>(null)
+        private set
+    
+    var onResult: ((String) -> Unit)? = null
+    var onPartialResult: ((String) -> Unit)? = null
+    
+    fun toggleLanguage() {
+        currentLanguage = if (currentLanguage == VoiceLanguage.ENGLISH) {
+            VoiceLanguage.BANGLA
+        } else {
+            VoiceLanguage.ENGLISH
+        }
+    }
+    
+    fun startListening() {
+        errorMessage = null
+        recognizedText = ""
+        
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+            errorMessage = "Speech recognition not available"
+            return
+        }
+        
+        try {
+            speechRecognizer?.destroy()
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+                setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        isListening = true
+                    }
+                    
+                    override fun onBeginningOfSpeech() {
+                        isListening = true
+                    }
+                    
+                    override fun onRmsChanged(rmsdB: Float) {}
+                    
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    
+                    override fun onEndOfSpeech() {
+                        isListening = false
+                    }
+                    
+                    override fun onError(error: Int) {
+                        isListening = false
+                        errorMessage = when (error) {
+                            SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected"
+                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
+                            SpeechRecognizer.ERROR_AUDIO -> "Audio error"
+                            SpeechRecognizer.ERROR_CLIENT -> "Client error"
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Permission denied"
+                            SpeechRecognizer.ERROR_NETWORK -> "Network error"
+                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognizer busy"
+                            SpeechRecognizer.ERROR_SERVER -> "Server error"
+                            else -> "Error: $error"
+                        }
+                    }
+                    
+                    override fun onResults(results: Bundle?) {
+                        isListening = false
+                        val matches = results?.getStringArrayListExtra(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val text = matches?.firstOrNull() ?: ""
+                        recognizedText = text
+                        if (text.isNotEmpty()) {
+                            onResult?.invoke(text)
+                        }
+                    }
+                    
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        val matches = partialResults?.getStringArrayListExtra(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val text = matches?.firstOrNull() ?: ""
+                        recognizedText = text
+                        if (text.isNotEmpty()) {
+                            onPartialResult?.invoke(text)
+                        }
+                    }
+                    
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+            }
+            isInitialized = true
+            
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, currentLanguage.code)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, currentLanguage.code)
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            }
+            
+            speechRecognizer?.startListening(intent)
+            isListening = true
+            
+        } catch (e: Exception) {
+            errorMessage = "Failed to start: ${e.message}"
+            isListening = false
+        }
+    }
+    
+    fun stopListening() {
+        try {
+            speechRecognizer?.stopListening()
+            isListening = false
+        } catch (e: Exception) {
+            // Ignore
+        }
+    }
+    
+    fun destroy() {
+        try {
+            speechRecognizer?.destroy()
+            speechRecognizer = null
+            isListening = false
+        } catch (e: Exception) {
+            // Ignore
+        }
+    }
+}
