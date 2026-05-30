@@ -133,36 +133,59 @@ private fun RowScope.VoiceToolbarContent(
     textColor: Color,
     voiceLanguage: String
 ) {
+    val isEnglish = voiceLanguage == "EN"
+    val isBangla = voiceLanguage == "বাং"
+    
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Language toggle button with clear visual
-        Row(
+        // ENGLISH Button
+        Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (voiceLanguage == "BN") Color(0xFF1976D2) else Color(0xFF388E3C))
-                .clickable { onToolbarAction(ToolbarAction.EN_BN_TOGGLE) }
+                .background(
+                    if (isEnglish) Color(0xFF4CAF50) // Green when selected
+                    else Color(0xFF757575) // Gray when not selected
+                )
+                .clickable {
+                    if (!isEnglish) {
+                        onToolbarAction(ToolbarAction.EN_BN_TOGGLE)
+                    }
+                }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "EN",
+                text = "English",
                 fontSize = 14.sp,
-                fontWeight = if (voiceLanguage == "EN") FontWeight.Bold else FontWeight.Normal,
-                color = if (voiceLanguage == "EN") Color.White else Color.White.copy(alpha = 0.6f)
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
+        }
+        
+        // BANGLA Button
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(
+                    if (isBangla) Color(0xFF2196F3) // Blue when selected
+                    else Color(0xFF757575) // Gray when not selected
+                )
+                .clickable {
+                    if (!isBangla) {
+                        onToolbarAction(ToolbarAction.EN_BN_TOGGLE)
+                    }
+                }
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                text = "|",
-                fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.4f)
-            )
-            Text(
-                text = "বাং",
+                text = "বাংলা",
                 fontSize = 14.sp,
-                fontWeight = if (voiceLanguage == "BN") FontWeight.Bold else FontWeight.Normal,
-                color = if (voiceLanguage == "BN") Color.White else Color.White.copy(alpha = 0.6f)
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
         }
 
@@ -179,8 +202,8 @@ private fun RowScope.VoiceToolbarContent(
                 modifier = Modifier.size(18.dp)
             )
             Text(
-                text = if (voiceLanguage == "BN") " শুনছি..." else " Listening...",
-                fontSize = 14.sp,
+                text = if (isBangla) " শুনছি..." else " Listening...",
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF4CAF50)
             )
@@ -192,7 +215,7 @@ private fun RowScope.VoiceToolbarContent(
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFFE53935))
                 .clickable { onToolbarAction(ToolbarAction.STOP_VOICE) }
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(
@@ -207,7 +230,7 @@ private fun RowScope.VoiceToolbarContent(
                 )
                 Text(
                     text = "Stop",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color.White
                 )
