@@ -137,35 +137,36 @@ private fun RowScope.VoiceToolbarContent(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Language toggle button (EN / BN)
+        // Language toggle button with clear visual
         Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (voiceLanguage == "BN") Color(0xFF1976D2) else Color(0xFF388E3C))
                 .clickable { onToolbarAction(ToolbarAction.EN_BN_TOGGLE) }
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = "EN",
                 fontSize = 14.sp,
                 fontWeight = if (voiceLanguage == "EN") FontWeight.Bold else FontWeight.Normal,
-                color = if (voiceLanguage == "EN") textColor else textColor.copy(alpha = 0.5f)
+                color = if (voiceLanguage == "EN") Color.White else Color.White.copy(alpha = 0.6f)
             )
             Text(
-                text = "/",
+                text = "|",
                 fontSize = 12.sp,
-                color = textColor.copy(alpha = 0.4f)
+                color = Color.White.copy(alpha = 0.4f)
             )
             Text(
-                text = "BN",
+                text = "বাং",
                 fontSize = 14.sp,
                 fontWeight = if (voiceLanguage == "BN") FontWeight.Bold else FontWeight.Normal,
-                color = if (voiceLanguage == "BN") textColor else textColor.copy(alpha = 0.5f)
+                color = if (voiceLanguage == "BN") Color.White else Color.White.copy(alpha = 0.6f)
             )
         }
 
-        // Listening indicator with mic icon
+        // Listening indicator
         Row(
             modifier = Modifier.weight(1f),
             horizontalArrangement = Arrangement.Center,
@@ -175,10 +176,10 @@ private fun RowScope.VoiceToolbarContent(
                 imageVector = Icons.Filled.Mic,
                 contentDescription = "Listening",
                 tint = Color(0xFF4CAF50),
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(18.dp)
             )
             Text(
-                text = " Listening...",
+                text = if (voiceLanguage == "BN") " শুনছি..." else " Listening...",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF4CAF50)
@@ -188,9 +189,10 @@ private fun RowScope.VoiceToolbarContent(
         // Stop button
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFE53935))
                 .clickable { onToolbarAction(ToolbarAction.STOP_VOICE) }
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(
@@ -200,14 +202,14 @@ private fun RowScope.VoiceToolbarContent(
                 Icon(
                     imageVector = Icons.Filled.MicOff,
                     contentDescription = "Stop",
-                    tint = Color(0xFFE53935),
+                    tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
                     text = "Stop",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFFE53935)
+                    color = Color.White
                 )
             }
         }
