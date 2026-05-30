@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -113,7 +114,7 @@ private fun SearchField(
 }
 
 @Composable
-private fun ClipboardList(
+private fun ColumnScope.ClipboardList(
     items: List<ClipboardItem>,
     onPaste: (String) -> Unit,
     onTogglePin: (String) -> Unit,
@@ -138,7 +139,7 @@ private fun ClipboardList(
 }
 
 @Composable
-private fun EmptyClipboard() {
+private fun ColumnScope.EmptyClipboard() {
     Box(
         modifier = Modifier
             .fillMaxWidth()

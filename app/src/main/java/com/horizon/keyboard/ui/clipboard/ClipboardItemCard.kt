@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -26,7 +27,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.horizon.keyboard.data.clipboard.ClipboardItem
-import com.horizon.keyboard.ui.theme.Dimens
 
 /**
  * Single clipboard item display.
@@ -50,26 +50,21 @@ fun ClipboardItemCard(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Text content
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.weight(1f)
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = item.text,
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = formatTimestamp(item.timestamp),
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 12.sp
-                )
-            }
+            Text(
+                text = item.text,
+                color = Color.White,
+                fontSize = 14.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = formatTimestamp(item.timestamp),
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 12.sp
+            )
         }
         
         // Action buttons
