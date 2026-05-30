@@ -68,6 +68,7 @@ fun KeyboardScreen() {
 
     var textContent by remember { mutableStateOf("") }
     var toolbarMode by remember { mutableStateOf(ToolbarMode.DEFAULT) }
+    var hasPermission by remember { mutableStateOf(false) }
     
     // Voice recognition manager
     val voiceManager = remember { VoiceRecognitionManager(context) }
@@ -93,6 +94,7 @@ fun KeyboardScreen() {
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
+        hasPermission = isGranted
         if (isGranted) {
             voiceManager.startListening()
             toolbarMode = ToolbarMode.VOICE
@@ -147,7 +149,11 @@ fun KeyboardScreen() {
                 placeholder = {
                     Text(
                         text = if (voiceManager.isListening) {
-                            "Listening in ${voiceManager.currentLanguage.displayName}..."
+                            if (voiceManager.currentLanguage.displayName == "বাং") {
+                                "বাংলায় বলুন..."
+                            } else {
+                                "Speak in English..."
+                            }
                         } else {
                             "Start typing..."
                         },
@@ -178,14 +184,25 @@ fun KeyboardScreen() {
             onToolbarAction = { action ->
                 when (action) {
                     ToolbarAction.VOICE_TYPING -> {
-                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        if (hasPermission) {
+                            voiceManager.startListening()
+                            toolbarMode = ToolbarMode.VOICE
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        }
                     }
                     ToolbarAction.STOP_VOICE -> {
                         voiceManager.stopListening()
                         toolbarMode = if (textContent.isNotEmpty()) ToolbarMode.TYPING else ToolbarMode.DEFAULT
                     }
                     ToolbarAction.EN_BN_TOGGLE -> {
+                        // Toggle language
                         voiceManager.toggleLanguage()
+                        // If currently listening, restart with new language
+                        if (voiceManager.isListening) {
+                            voiceManager.stopListening()
+                            voiceManager.startListening()
+                        }
                     }
                     else -> {}
                 }
