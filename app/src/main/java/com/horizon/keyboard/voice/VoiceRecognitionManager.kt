@@ -28,11 +28,7 @@ class VoiceRecognitionManager(private val context: Context) {
     var currentLanguage by mutableStateOf(VoiceLanguage.ENGLISH)
         private set
     
-    var errorMessage by mutableStateOf<String?>(null)
-        private set
-    
     var onResult: ((String) -> Unit)? = null
-    var onPartialResult: ((String) -> Unit)? = null
     
     fun toggleLanguage() {
         currentLanguage = if (currentLanguage == VoiceLanguage.ENGLISH) {
@@ -43,72 +39,55 @@ class VoiceRecognitionManager(private val context: Context) {
     }
     
     fun startListening() {
-        errorMessage = null
         recognizedText = ""
         
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            errorMessage = "Speech recognition not available"
             return
         }
         
         try {
             speechRecognizer?.destroy()
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
-                setRecognitionListener(object : RecognitionListener {
-                    override fun onReadyForSpeech(params: Bundle?) {
-                        isListening = true
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+            
+            speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+                override fun onReadyForSpeech(params: Bundle?) {
+                    isListening = true
+                }
+                
+                override fun onBeginningOfSpeech() {
+                    isListening = true
+                }
+                
+                override fun onRmsChanged(rmsdB: Float) {}
+                
+                override fun onBufferReceived(buffer: ByteArray?) {}
+                
+                override fun onEndOfSpeech() {
+                    isListening = false
+                }
+                
+                override fun onError(error: Int) {
+                    isListening = false
+                }
+                
+                override fun onResults(results: Bundle?) {
+                    isListening = false
+                    val matches = results?.getStringArrayListExtra(SpeechRecognizer.RESULTS_RECOGNITION)
+                    val text = matches?.firstOrNull() ?: ""
+                    recognizedText = text
+                    if (text.isNotEmpty()) {
+                        onResult?.invoke(text)
                     }
-                    
-                    override fun onBeginningOfSpeech() {
-                        isListening = true
-                    }
-                    
-                    override fun onRmsChanged(rmsdB: Float) {}
-                    
-                    override fun onBufferReceived(buffer: ByteArray?) {}
-                    
-                    override fun onEndOfSpeech() {
-                        isListening = false
-                    }
-                    
-                    override fun onError(error: Int) {
-                        isListening = false
-                        errorMessage = when (error) {
-                            SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected"
-                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
-                            SpeechRecognizer.ERROR_AUDIO -> "Audio error"
-                            SpeechRecognizer.ERROR_CLIENT -> "Client error"
-                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Permission denied"
-                            SpeechRecognizer.ERROR_NETWORK -> "Network error"
-                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
-                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognizer busy"
-                            SpeechRecognizer.ERROR_SERVER -> "Server error"
-                            else -> "Error: $error"
-                        }
-                    }
-                    
-                    override fun onResults(results: Bundle?) {
-                        isListening = false
-                        val matches = results?.getStringArrayListExtra(SpeechRecognizer.RESULTS_RECOGNITION)
-                        val text = matches?.firstOrNull() ?: ""
-                        recognizedText = text
-                        if (text.isNotEmpty()) {
-                            onResult?.invoke(text)
-                        }
-                    }
-                    
-                    override fun onPartialResults(partialResults: Bundle?) {
-                        val matches = partialResults?.getStringArrayListExtra(SpeechRecognizer.RESULTS_RECOGNITION)
-                        val text = matches?.firstOrNull() ?: ""
-                        recognizedText = text
-                        if (text.isNotEmpty()) {
-                            onPartialResult?.invoke(text)
-                        }
-                    }
-                    
-                    override fun onEvent(eventType: Int, params: Bundle?) {}
-                })
-            }
+                }
+                
+                override fun onPartialResults(partialResults: Bundle?) {
+                    val matches = partialResults?.getStringArrayListExtra(SpeechRecognizer.RESULTS_RECOGNITION)
+                    val text = matches?.firstOrNull() ?: ""
+                    recognizedText = text
+                }
+                
+                override fun onEvent(eventType: Int, params: Bundle?) {}
+            })
             
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -122,7 +101,6 @@ class VoiceRecognitionManager(private val context: Context) {
             isListening = true
             
         } catch (e: Exception) {
-            errorMessage = "Failed to start: ${e.message}"
             isListening = false
         }
     }
