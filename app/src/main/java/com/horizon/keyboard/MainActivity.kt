@@ -149,7 +149,7 @@ fun KeyboardScreen() {
                 placeholder = {
                     Text(
                         text = if (voiceManager.isListening) {
-                            if (voiceManager.currentLanguage.displayName == "বাং") {
+                            if (voiceManager.currentLanguage.displayName == "বাংলা") {
                                 "বাংলায় বলুন..."
                             } else {
                                 "Speak in English..."

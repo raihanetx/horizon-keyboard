@@ -10,11 +10,27 @@ import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import java.util.Locale
 
-enum class VoiceLanguage(val locale: Locale, val displayName: String, val prompt: String) {
-    ENGLISH(Locale.US, "EN", "Speak in English..."),
-    BANGLA(Locale("bn", "BD"), "বাং", "বাংলায় বলুন...")
+data class VoiceLanguage(
+    val code: String,           // Language code for SpeechRecognizer
+    val displayName: String,    // Display name
+    val prompt: String,         // Prompt text
+    val locale: String          // Locale string
+) {
+    companion object {
+        val ENGLISH = VoiceLanguage(
+            code = "en-US",
+            displayName = "English",
+            prompt = "Speak in English...",
+            locale = "en-US"
+        )
+        val BANGLA = VoiceLanguage(
+            code = "bn-BD",
+            displayName = "বাংলা",
+            prompt = "বাংলায় বলুন...",
+            locale = "bn-BD"
+        )
+    }
 }
 
 class VoiceRecognitionManager(private val context: Context) {
@@ -43,7 +59,7 @@ class VoiceRecognitionManager(private val context: Context) {
         } else {
             VoiceLanguage.ENGLISH
         }
-        Log.d(TAG, "Language switched to: ${currentLanguage.displayName} (locale: ${currentLanguage.locale})")
+        Log.d(TAG, "Language switched to: ${currentLanguage.displayName}")
     }
     
     fun startListening() {
@@ -104,7 +120,7 @@ class VoiceRecognitionManager(private val context: Context) {
                     val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     val text = matches?.firstOrNull() ?: ""
                     recognizedText = text
-                    Log.d(TAG, "Result: '$text' (expected language: ${currentLanguage.displayName})")
+                    Log.d(TAG, "Result: '$text' (language: ${currentLanguage.displayName})")
                     if (text.isNotEmpty()) {
                         onResult?.invoke(text)
                     }
@@ -124,11 +140,12 @@ class VoiceRecognitionManager(private val context: Context) {
                 // Required: Language model
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 
-                // CRITICAL: Set the language explicitly using locale string
-                val languageCode = currentLanguage.locale.toString()
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageCode)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, languageCode)
-                putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, languageCode)
+                // CRITICAL: Set the language explicitly
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, currentLanguage.locale)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, currentLanguage.locale)
+                
+                // Only return results in the specified language
+                putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, true)
                 
                 // Partial results for real-time feedback
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
@@ -139,10 +156,10 @@ class VoiceRecognitionManager(private val context: Context) {
                 // Prompt for the user
                 putExtra(RecognizerIntent.EXTRA_PROMPT, currentLanguage.prompt)
                 
-                Log.d(TAG, "Intent extras - Language: $languageCode")
+                Log.d(TAG, "Intent extras - Language: ${currentLanguage.locale}")
             }
             
-            Log.d(TAG, "Starting recognition with locale: ${currentLanguage.locale}")
+            Log.d(TAG, "Starting recognition with language: ${currentLanguage.locale}")
             speechRecognizer?.startListening(intent)
             
         } catch (e: Exception) {

@@ -51,7 +51,7 @@ fun ToolbarView(
     suggestions: List<String>,
     onSuggestionClick: (String) -> Unit,
     onToolbarAction: (ToolbarAction) -> Unit,
-    voiceLanguage: String = "EN",
+    voiceLanguage: String = "English",
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
@@ -133,8 +133,8 @@ private fun RowScope.VoiceToolbarContent(
     textColor: Color,
     voiceLanguage: String
 ) {
-    val isEnglish = voiceLanguage == "EN"
-    val isBangla = voiceLanguage == "বাং"
+    val isEnglish = voiceLanguage == "English"
+    val isBangla = voiceLanguage == "বাংলা"
     
     Row(
         modifier = Modifier.fillMaxWidth(),
