@@ -20,8 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.horizon.keyboard.data.clipboard.ClipboardItem
-import com.horizon.keyboard.ui.theme.Dimens
 
 /**
  * Main clipboard panel with history and actions.
@@ -56,8 +56,6 @@ fun ClipboardPanel(
             ClipboardToolbar(
                 itemCount = items.size,
                 isSearchVisible = isSearchVisible,
-                searchText = searchText,
-                onSearchTextChange = onSearchTextChange,
                 onToggleSearch = onToggleSearch,
                 onClearAll = onClearAll,
                 onClose = onClose
@@ -96,7 +94,7 @@ private fun SearchField(
         onValueChange = onSearchTextChange,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Dimens.SpacingSm, vertical = Dimens.SpacingXs),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         placeholder = {
             Text(
                 text = "Search clipboard...",
@@ -125,8 +123,8 @@ private fun ClipboardList(
         modifier = Modifier
             .fillMaxWidth()
             .weight(1f)
-            .padding(horizontal = Dimens.SpacingSm),
-        verticalArrangement = Arrangement.spacedBy(Dimens.SpacingXs)
+            .padding(horizontal = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         items(items) { item ->
             ClipboardItemCard(
@@ -149,7 +147,8 @@ private fun EmptyClipboard() {
     ) {
         Text(
             text = "Clipboard is empty",
-            color = Color.White.copy(alpha = 0.5f)
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = 14.sp
         )
     }
 }

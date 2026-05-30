@@ -16,15 +16,15 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import com.horizon.keyboard.ui.theme.Dimens
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * Toolbar for clipboard panel.
@@ -33,8 +33,6 @@ import com.horizon.keyboard.ui.theme.Dimens
 fun ClipboardToolbar(
     itemCount: Int,
     isSearchVisible: Boolean,
-    searchText: String,
-    onSearchTextChange: (String) -> Unit,
     onToggleSearch: () -> Unit,
     onClearAll: () -> Unit,
     onClose: () -> Unit,
@@ -43,33 +41,33 @@ fun ClipboardToolbar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(Dimens.ToolbarHeight)
+            .height(40.dp)
             .background(Color(0xFF1A202C))
-            .padding(horizontal = Dimens.SpacingSm),
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         // Left side - Title and count
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpacingSm)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = "Clipboard",
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
-                fontSize = Dimens.TextMedium
+                fontSize = 14.sp
             )
             Text(
                 text = "($itemCount)",
                 color = Color.White.copy(alpha = 0.5f),
-                fontSize = Dimens.TextSmall
+                fontSize = 12.sp
             )
         }
         
         // Right side - Actions
         Row(
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpacingXs)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // Search button
             ToolbarButton(
@@ -97,16 +95,16 @@ fun ClipboardToolbar(
 
 @Composable
 private fun ToolbarButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     tint: Color,
     onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .size(36.dp)
-            .clip(RoundedCornerShape(Dimens.RadiusSm))
+            .clip(RoundedCornerShape(6.dp))
             .clickable(onClick = onClick)
-            .padding(Dimens.SpacingSm),
+            .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
         Icon(

@@ -4,10 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,8 +20,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.horizon.keyboard.data.clipboard.ClipboardItem
 import com.horizon.keyboard.ui.theme.Dimens
 
@@ -41,34 +42,39 @@ fun ClipboardItemCard(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Dimens.RadiusMd))
+            .clip(RoundedCornerShape(8.dp))
             .background(Color(0xFF2D3748))
             .clickable { onPaste(item.text) }
-            .padding(Dimens.SpacingSm),
+            .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Dimens.SpacingSm)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Text content
-        Column(
-            modifier = Modifier.weight(1f)
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = item.text,
-                color = Color.White,
-                fontSize = Dimens.TextMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = formatTimestamp(item.timestamp),
-                color = Color.White.copy(alpha = 0.5f),
-                fontSize = Dimens.TextSmall
-            )
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = item.text,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = formatTimestamp(item.timestamp),
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 12.sp
+                )
+            }
         }
         
         // Action buttons
         Row(
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpacingXs)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // Pin button
             IconButton(
@@ -96,16 +102,16 @@ fun ClipboardItemCard(
 
 @Composable
 private fun IconButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     tint: Color,
     onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .size(32.dp)
-            .clip(RoundedCornerShape(Dimens.RadiusSm))
+            .clip(RoundedCornerShape(6.dp))
             .clickable(onClick = onClick)
-            .padding(Dimens.SpacingXs),
+            .padding(4.dp),
         contentAlignment = Alignment.Center
     ) {
         Icon(
