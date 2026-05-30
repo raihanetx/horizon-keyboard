@@ -130,45 +130,31 @@ fun SuggestionRow(
             .fillMaxWidth()
             .height(36.dp)
             .drawBehind {
-                // Top border line
+                // Single bottom border line only
                 val borderWidth = 0.5.dp.toPx()
                 drawLine(
                     color = dividerColor,
-                    start = androidx.compose.ui.geometry.Offset(0f, borderWidth / 2f),
-                    end = androidx.compose.ui.geometry.Offset(size.width, borderWidth / 2f),
-                    strokeWidth = borderWidth
-                )
-                // Bottom border line
-                drawLine(
-                    color = dividerColor,
-                    start = androidx.compose.ui.geometry.Offset(0f, size.height - borderWidth / 2f),
-                    end = androidx.compose.ui.geometry.Offset(size.width, size.height - borderWidth / 2f),
+                    start = androidx.compose.ui.geometry.Offset(0f, size.height),
+                    end = androidx.compose.ui.geometry.Offset(size.width, size.height),
                     strokeWidth = borderWidth
                 )
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
         suggestions.forEachIndexed { index, suggestion ->
-            // Divider line before each item (except first)
+            // Vertical divider between words
             if (index > 0) {
                 Box(
                     modifier = Modifier
-                        .width(0.5.dp)
-                        .height(20.dp)
-                        .drawBehind {
-                            drawLine(
-                                color = dividerColor,
-                                start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                end = androidx.compose.ui.geometry.Offset(0f, size.height),
-                                strokeWidth = 0.5.dp.toPx()
-                            )
-                        }
+                        .width(1.dp)
+                        .height(18.dp)
+                        .background(dividerColor)
                 )
             }
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(36.dp)
+                    .fillMaxHeight()
                     .clickable { onSuggestionClick(suggestion) },
                 contentAlignment = Alignment.Center
             ) {
