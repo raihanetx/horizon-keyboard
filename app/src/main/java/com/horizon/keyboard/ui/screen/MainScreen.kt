@@ -148,7 +148,7 @@ private fun TextInputSection(
         modifier = Modifier
             .fillMaxWidth()
             .padding(Dimens.SpacingLg)
-            .padding(bottom = 280.dp),
+            .padding(bottom = Dimens.KeyboardHeight),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(

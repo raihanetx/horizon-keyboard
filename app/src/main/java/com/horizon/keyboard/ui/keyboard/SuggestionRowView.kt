@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.horizon.keyboard.ui.theme.DarkKeyBorder
 import com.horizon.keyboard.ui.theme.DarkSuggestionText
@@ -56,9 +58,9 @@ fun SuggestionRow(
 }
 
 @Composable
-private fun SuggestionItem(
+private fun RowScope.SuggestionItem(
     text: String,
-    color: androidx.compose.ui.graphics.Color,
+    color: Color,
     onClick: () -> Unit
 ) {
     Box(
@@ -78,7 +80,7 @@ private fun SuggestionItem(
 }
 
 @Composable
-private fun VerticalDivider(color: androidx.compose.ui.graphics.Color) {
+private fun VerticalDivider(color: Color) {
     Box(
         modifier = Modifier
             .width(Dimens.BorderNormal)
@@ -87,9 +89,7 @@ private fun VerticalDivider(color: androidx.compose.ui.graphics.Color) {
     )
 }
 
-private fun Modifier.drawBottomBorder(
-    color: androidx.compose.ui.graphics.Color
-): Modifier = this.drawBehind {
+private fun Modifier.drawBottomBorder(color: Color): Modifier = this.drawBehind {
     drawLine(
         color = color,
         start = Offset(0f, size.height),

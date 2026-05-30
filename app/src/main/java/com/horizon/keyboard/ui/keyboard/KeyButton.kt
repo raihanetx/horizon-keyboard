@@ -32,6 +32,7 @@ import com.horizon.keyboard.data.model.KeyItem
 import com.horizon.keyboard.data.model.KeyType
 import com.horizon.keyboard.ui.theme.Dimens
 import com.horizon.keyboard.ui.theme.getKeyColors
+import com.horizon.keyboard.ui.theme.KeyColorScheme
 
 /**
  * Individual keyboard key button with press animation.

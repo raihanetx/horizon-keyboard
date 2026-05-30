@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,6 +30,7 @@ import com.horizon.keyboard.ui.theme.Dimens
 import com.horizon.keyboard.ui.theme.LightKeyText
 import com.horizon.keyboard.ui.theme.LightToolbarBorder
 import com.horizon.keyboard.ui.theme.LightToolbarIcon
+import com.horizon.keyboard.ui.voice.VoiceToolbar
 
 /**
  * Toolbar modes.
@@ -89,25 +91,20 @@ fun KeyboardToolbar(
 }
 
 @Composable
-private fun DefaultToolbar(
+private fun RowScope.DefaultToolbar(
     onToolbarAction: (ToolbarAction) -> Unit,
     iconColor: Color
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        ToolbarButton(Icons.Filled.Keyboard, "Keyboard", { onToolbarAction(ToolbarAction.KEYBOARD_LAYOUT) }, iconColor)
-        ToolbarButton(Icons.Filled.SentimentSatisfied, "Emojis", { onToolbarAction(ToolbarAction.EMOJIS) }, iconColor)
-        ToolbarButton(Icons.Filled.Mic, "Voice", { onToolbarAction(ToolbarAction.VOICE_TYPING) }, iconColor)
-        ToolbarButton(Icons.Filled.ContentCopy, "Clipboard", { onToolbarAction(ToolbarAction.CLIPBOARD) }, iconColor)
-        ToolbarButton(Icons.Filled.Language, "Translate", { onToolbarAction(ToolbarAction.TRANSLATE) }, iconColor)
-        ToolbarButton(Icons.Filled.Settings, "Settings", { onToolbarAction(ToolbarAction.SETTINGS) }, iconColor)
-    }
+    ToolbarButton(Icons.Filled.Keyboard, "Keyboard", { onToolbarAction(ToolbarAction.KEYBOARD_LAYOUT) }, iconColor)
+    ToolbarButton(Icons.Filled.SentimentSatisfied, "Emojis", { onToolbarAction(ToolbarAction.EMOJIS) }, iconColor)
+    ToolbarButton(Icons.Filled.Mic, "Voice", { onToolbarAction(ToolbarAction.VOICE_TYPING) }, iconColor)
+    ToolbarButton(Icons.Filled.ContentCopy, "Clipboard", { onToolbarAction(ToolbarAction.CLIPBOARD) }, iconColor)
+    ToolbarButton(Icons.Filled.Language, "Translate", { onToolbarAction(ToolbarAction.TRANSLATE) }, iconColor)
+    ToolbarButton(Icons.Filled.Settings, "Settings", { onToolbarAction(ToolbarAction.SETTINGS) }, iconColor)
 }
 
 @Composable
-private fun ToolbarButton(
+private fun RowScope.ToolbarButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
