@@ -18,7 +18,6 @@ enum class VoiceLanguage(val code: String, val displayName: String) {
 class VoiceRecognitionManager(private val context: Context) {
     
     private var speechRecognizer: SpeechRecognizer? = null
-    private var isInitialized = false
     
     var isListening by mutableStateOf(false)
         private set
@@ -110,7 +109,6 @@ class VoiceRecognitionManager(private val context: Context) {
                     override fun onEvent(eventType: Int, params: Bundle?) {}
                 })
             }
-            isInitialized = true
             
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
