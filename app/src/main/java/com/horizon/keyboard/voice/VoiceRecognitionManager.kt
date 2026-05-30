@@ -72,7 +72,7 @@ class VoiceRecognitionManager(private val context: Context) {
                 
                 override fun onResults(results: Bundle?) {
                     isListening = false
-                    val matches = results?.getStringArrayListExtra(SpeechRecognizer.RESULTS_RECOGNITION)
+                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     val text = matches?.firstOrNull() ?: ""
                     recognizedText = text
                     if (text.isNotEmpty()) {
@@ -81,7 +81,7 @@ class VoiceRecognitionManager(private val context: Context) {
                 }
                 
                 override fun onPartialResults(partialResults: Bundle?) {
-                    val matches = partialResults?.getStringArrayListExtra(SpeechRecognizer.RESULTS_RECOGNITION)
+                    val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     val text = matches?.firstOrNull() ?: ""
                     recognizedText = text
                 }
