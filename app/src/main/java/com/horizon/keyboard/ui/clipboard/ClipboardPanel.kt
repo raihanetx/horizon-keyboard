@@ -1,155 +1,138 @@
 package com.horizon.keyboard.ui.clipboard
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.horizon.keyboard.data.clipboard.ClipboardItem
 
-/**
- * Main clipboard panel with history and actions.
- */
 @Composable
 fun ClipboardPanel(
-    isVisible: Boolean,
-    items: List<ClipboardItem>,
-    isSearchVisible: Boolean,
-    searchText: String,
-    onSearchTextChange: (String) -> Unit,
-    onToggleSearch: () -> Unit,
-    onClearAll: () -> Unit,
-    onClose: () -> Unit,
-    onPaste: (String) -> Unit,
+    recentItems: List<ClipboardItem>,
+    pinnedItems: List<ClipboardItem>,
+    toastMessage: String?,
+    onToastShown: () -> Unit,
+    onCopy: (String) -> Unit,
     onTogglePin: (String) -> Unit,
-    onRemove: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = slideInVertically(initialOffsetY = { it }),
-        exit = slideOutVertically(targetOffsetY = { it })
-    ) {
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .height(280.dp)
-                .background(Color(0xFF1A202C))
-        ) {
-            // Toolbar
-            ClipboardToolbar(
-                itemCount = items.size,
-                isSearchVisible = isSearchVisible,
-                onToggleSearch = onToggleSearch,
-                onClearAll = onClearAll,
-                onClose = onClose
-            )
-            
-            // Search field
-            if (isSearchVisible) {
-                SearchField(
-                    searchText = searchText,
-                    onSearchTextChange = onSearchTextChange
-                )
-            }
-            
-            // Items list
-            if (items.isEmpty()) {
-                EmptyClipboard()
-            } else {
-                ClipboardList(
-                    items = items,
-                    onPaste = onPaste,
-                    onTogglePin = onTogglePin,
-                    onRemove = onRemove
-                )
-            }
+    val pagerState = rememberPagerState(pageCount = { 2 })
+
+    LaunchedEffect(toastMessage) {
+        if (toastMessage != null) {
+            delay(1100)
+            onToastShown()
         }
     }
-}
 
-@Composable
-private fun SearchField(
-    searchText: String,
-    onSearchTextChange: (String) -> Unit
-) {
-    TextField(
-        value = searchText,
-        onValueChange = onSearchTextChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        placeholder = {
-            Text(
-                text = "Search clipboard...",
-                color = Color.White.copy(alpha = 0.4f)
-            )
-        },
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color(0xFF2D3748),
-            unfocusedContainerColor = Color(0xFF2D3748),
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent
-        )
-    )
-}
-
-@Composable
-private fun ColumnScope.ClipboardList(
-    items: List<ClipboardItem>,
-    onPaste: (String) -> Unit,
-    onTogglePin: (String) -> Unit,
-    onRemove: (String) -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f)
-            .padding(horizontal = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        items(items) { item ->
-            ClipboardItemCard(
-                item = item,
-                onPaste = onPaste,
-                onTogglePin = onTogglePin,
-                onRemove = onRemove
-            )
-        }
-    }
-}
-
-@Composable
-private fun ColumnScope.EmptyClipboard() {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .weight(1f),
-        contentAlignment = Alignment.Center
+            .height(280.dp)
+            .background(Color(0xFF1C1C1E))
     ) {
-        Text(
-            text = "Clipboard is empty",
-            color = Color.White.copy(alpha = 0.5f),
-            fontSize = 14.sp
-        )
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            val items = if (page == 0) recentItems else pinnedItems
+            val emptyMessage = if (page == 0) "No recent clips" else "No pinned clips"
+
+            ClipboardPage(
+                items = items,
+                emptyMessage = emptyMessage,
+                onCopy = onCopy,
+                onTogglePin = onTogglePin
+            )
+        }
+
+        // Toast
+        AnimatedVisibility(
+            visible = toastMessage != null,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(100.dp))
+                    .background(Color(0xFF2C2C2E).copy(alpha = 0.94f))
+                    .padding(horizontal = 24.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    text = toastMessage ?: "",
+                    style = TextStyle(
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClipboardPage(
+    items: List<ClipboardItem>,
+    emptyMessage: String,
+    onCopy: (String) -> Unit,
+    onTogglePin: (String) -> Unit
+) {
+    if (items.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = emptyMessage,
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.08f)
+                )
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                ClipboardItemCard(
+                    item = item,
+                    onClick = { onCopy(item.text) },
+                    onLongPress = { onTogglePin(item.id) }
+                )
+            }
+        }
     }
 }

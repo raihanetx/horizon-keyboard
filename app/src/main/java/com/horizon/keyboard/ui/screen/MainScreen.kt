@@ -1,7 +1,9 @@
 package com.horizon.keyboard.ui.screen
 
 import android.Manifest
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -26,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -35,16 +38,12 @@ import com.horizon.keyboard.ui.keyboard.ToolbarAction
 import com.horizon.keyboard.ui.keyboard.ToolbarMode
 import com.horizon.keyboard.ui.theme.DarkBackground
 import com.horizon.keyboard.ui.theme.DarkKeyText
-import com.horizon.keyboard.ui.theme.Dimens
 import com.horizon.keyboard.ui.theme.LightBackground
 import com.horizon.keyboard.ui.theme.LightKeyText
 import com.horizon.keyboard.viewmodel.ClipboardViewModel
 import com.horizon.keyboard.viewmodel.KeyboardViewModel
 import com.horizon.keyboard.viewmodel.VoiceViewModel
 
-/**
- * Main screen of the keyboard application.
- */
 @Composable
 fun MainScreen(
     keyboardViewModel: KeyboardViewModel = viewModel(),
@@ -55,11 +54,10 @@ fun MainScreen(
     val context = LocalContext.current
     val voiceState by voiceViewModel.uiState.collectAsState()
     val clipboardState by clipboardViewModel.uiState.collectAsState()
-    
+
     var textContent by remember { mutableStateOf("") }
     var hasPermission by remember { mutableStateOf(false) }
-    
-    // Permission launcher
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -68,8 +66,7 @@ fun MainScreen(
             voiceViewModel.startListening(context)
         }
     }
-    
-    // Setup callbacks
+
     DisposableEffect(Unit) {
         keyboardViewModel.onKeyPress = { key ->
             textContent += key
@@ -85,86 +82,80 @@ fun MainScreen(
         voiceViewModel.onResult = { text ->
             textContent = if (textContent.isEmpty()) text else "$textContent $text"
         }
-        
+
         onDispose {
             voiceViewModel.cleanup()
         }
     }
-    
-    // Determine toolbar mode
+
     val toolbarMode = when {
         voiceState.isListening -> ToolbarMode.VOICE
         clipboardState.isPanelOpen -> ToolbarMode.DEFAULT
         textContent.isNotEmpty() -> ToolbarMode.TYPING
         else -> ToolbarMode.DEFAULT
     }
-    
-    // Get suggestions
+
     val suggestions = remember(textContent) {
         keyboardViewModel.getSuggestions(textContent)
     }
-    
+
+    val bottomPadding = if (clipboardState.isPanelOpen) 560.dp else 280.dp
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(if (isDark) DarkBackground else LightBackground)
     ) {
-        // Text input area
         TextInputSection(
             textContent = textContent,
             onTextChange = { textContent = it },
             isVoiceListening = voiceState.isListening,
             voiceLanguage = voiceState.currentLanguage.displayName,
-            isDark = isDark
+            isDark = isDark,
+            bottomPadding = bottomPadding
         )
-        
-        // Clipboard panel (shows above keyboard)
-        if (clipboardState.isPanelOpen) {
-            ClipboardPanel(
-                isVisible = clipboardState.isPanelOpen,
-                items = clipboardState.items,
-                isSearchVisible = false,
-                searchText = clipboardState.searchText,
-                onSearchTextChange = { clipboardViewModel.updateSearch(it) },
-                onToggleSearch = {},
-                onClearAll = { clipboardViewModel.clearUnpinned() },
-                onClose = { clipboardViewModel.closePanel() },
-                onPaste = { text ->
-                    textContent = if (textContent.isEmpty()) text else "$textContent $text"
-                    clipboardViewModel.closePanel()
-                },
-                onTogglePin = { clipboardViewModel.togglePin(it) },
-                onRemove = { clipboardViewModel.remove(it) },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 280.dp)
-            )
-        }
-        
-        // Keyboard
-        KeyboardContainer(
-            toolbarMode = toolbarMode,
-            onToolbarAction = { action ->
-                handleToolbarAction(
-                    action = action,
-                    hasPermission = hasPermission,
-                    context = context,
-                    voiceViewModel = voiceViewModel,
-                    clipboardViewModel = clipboardViewModel,
-                    permissionLauncher = permissionLauncher,
-                    onCopy = { clipboardViewModel.copy(textContent) }
-                )
-            },
-            voiceLanguage = voiceState.currentLanguage.displayName,
-            suggestions = suggestions,
-            onSuggestionClick = { word ->
-                textContent = keyboardViewModel.getSuggestionReplacement(textContent, word)
-            },
-            keyboardRows = keyboardViewModel.getLayout(),
-            isShiftActive = keyboardViewModel.uiState.isShift,
-            onKeyClick = { keyboardViewModel.handleKeyPress(it) },
+
+        // Keyboard + Clipboard stacked, anchored to bottom
+        Column(
             modifier = Modifier.align(Alignment.BottomCenter)
-        )
+        ) {
+            KeyboardContainer(
+                toolbarMode = toolbarMode,
+                onToolbarAction = { action ->
+                    handleToolbarAction(
+                        action = action,
+                        hasPermission = hasPermission,
+                        context = context,
+                        voiceViewModel = voiceViewModel,
+                        clipboardViewModel = clipboardViewModel,
+                        permissionLauncher = permissionLauncher,
+                        onCopy = { clipboardViewModel.copy(textContent) }
+                    )
+                },
+                voiceLanguage = voiceState.currentLanguage.displayName,
+                suggestions = suggestions,
+                onSuggestionClick = { word ->
+                    textContent = keyboardViewModel.getSuggestionReplacement(textContent, word)
+                },
+                keyboardRows = keyboardViewModel.getLayout(),
+                isShiftActive = keyboardViewModel.uiState.isShift,
+                onKeyClick = { keyboardViewModel.handleKeyPress(it) }
+            )
+
+            if (clipboardState.isPanelOpen) {
+                ClipboardPanel(
+                    recentItems = clipboardViewModel.getRecentItems(),
+                    pinnedItems = clipboardViewModel.getPinnedItems(),
+                    toastMessage = clipboardState.toastMessage,
+                    onToastShown = { clipboardViewModel.clearToast() },
+                    onCopy = { text ->
+                        textContent = if (textContent.isEmpty()) text else "$textContent $text"
+                        clipboardViewModel.closePanel()
+                    },
+                    onTogglePin = { clipboardViewModel.togglePin(it) }
+                )
+            }
+        }
     }
 }
 
@@ -174,13 +165,14 @@ private fun TextInputSection(
     onTextChange: (String) -> Unit,
     isVoiceListening: Boolean,
     voiceLanguage: String,
-    isDark: Boolean
+    isDark: Boolean,
+    bottomPadding: Dp
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
-            .padding(bottom = 280.dp),
+            .padding(bottom = bottomPadding),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -189,7 +181,7 @@ private fun TextInputSection(
             color = if (isDark) DarkKeyText else LightKeyText,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-        
+
         TextField(
             value = textContent,
             onValueChange = onTextChange,
@@ -228,10 +220,10 @@ private fun getPlaceholder(isVoiceListening: Boolean, voiceLanguage: String): St
 private fun handleToolbarAction(
     action: ToolbarAction,
     hasPermission: Boolean,
-    context: android.content.Context,
+    context: Context,
     voiceViewModel: VoiceViewModel,
     clipboardViewModel: ClipboardViewModel,
-    permissionLauncher: androidx.activity.result.ActivityResultLauncher<String>,
+    permissionLauncher: ActivityResultLauncher<String>,
     onCopy: () -> Unit
 ) {
     when (action) {
@@ -248,9 +240,8 @@ private fun handleToolbarAction(
             clipboardViewModel.togglePanel()
         }
         ToolbarAction.SETTINGS -> {
-            // Copy current text to clipboard
             onCopy()
         }
-        else -> {} // Other actions not implemented yet
+        else -> {}
     }
 }
